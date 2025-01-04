@@ -9,7 +9,7 @@ from pylab import rcParams
 # from tensorflow import keras
 sns.set_style("darkgrid")
 
-data = pd.read_csv('./nyc-citibike-data/data/daily_citi_bike_trip_counts_and_weather.csv',
+data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                  parse_dates=['date'],
                  index_col=['date'],
                  usecols=['date','trips','dow','holiday','weekday','weekday_non_holiday','snowfall','min_temperature','max_temperature','precipitation']
