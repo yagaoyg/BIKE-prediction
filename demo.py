@@ -1,18 +1,11 @@
-#importing the necessary libraries.
 import numpy as np
 import pandas as pd
-# import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-# from pylab import rcParams
 import tensorflow as tf
 from tensorflow import keras
 from sklearn.preprocessing import RobustScaler
-
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense,Flatten,Dropout,LSTM
-
-# sns.set_style("darkgrid")
 
 data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                  parse_dates=['date'],
@@ -20,10 +13,8 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                  usecols=['date','trips','precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday']
                  )
 
-# data['count'] = data.trips
-
 # 展示前20行
-print(data.head(20))
+# print(data.head(20))
 # 展示后5行
 # print(data.tail())
 
