@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow import keras
+# from tensorflow import keras
 from sklearn.preprocessing import RobustScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense,Flatten,Dropout,LSTM
+# from tensorflow.keras.models import Sequential
+# from tensorflow.keras.layers import Dense,Flatten,Dropout,LSTM
+from keras.api.models import Sequential
+from keras.api.layers import Dense,Flatten,Dropout,LSTM
+
 
 data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                  parse_dates=['date'],
