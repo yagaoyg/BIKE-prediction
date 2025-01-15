@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import seaborn as sns
 # from tensorflow import keras
 from sklearn.preprocessing import RobustScaler
 # from tensorflow.keras.models import Sequential
