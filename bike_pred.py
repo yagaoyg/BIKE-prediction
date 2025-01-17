@@ -25,7 +25,7 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
 
 # 分割用于训练的数据和用于测试的数据
 # 90% 用于训练，10% 用于测试
-train_size = int(len(data) * 0.9)
+train_size = int(len(data) * 0.80)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
 print(len(train_data), len(test_data))
@@ -75,7 +75,7 @@ model.add(Dense(1))
 
 model.compile(optimizer='adam', loss='mse')
 
-history = model.fit(x_train,y_train,validation_data=(x_test,y_test),epochs=100,batch_size=64,shuffle=True)
+history = model.fit(x_train,y_train,validation_data=(x_test,y_test),epochs=800,batch_size=256,shuffle=True)
 
 # 绘制训练损失和验证损失的变化曲线
 plt.plot(history.history['loss'],label='train loss')
