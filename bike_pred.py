@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import tensorflow as tf
+from datetime import datetime
 from sklearn.preprocessing import RobustScaler
 from keras.api.callbacks import ModelCheckpoint
 from keras.api.models import Sequential,load_model
@@ -22,7 +23,13 @@ else:
 data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                    parse_dates=['date'],
                    index_col=['date'],
-                   usecols=['date','trips','precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday'])
+                   usecols=['date','trips','precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday','month','dt','day','year'])
+
+# 引入数据指标记录表
+train_df = pd.read_excel('train.xlsx')
+
+# 记录开始时间
+start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
 # 展示前20行
 # print(data.head(20))
@@ -34,13 +41,16 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
 
 # 分割用于训练的数据和用于测试的数据
 # 90% 用于训练，10% 用于测试
-train_size = int(len(data) * 0.9)
+train_percentage = 0.9
+train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
 # print(len(train_data), len(test_data))
 
 # 选取特征
-cols = ['precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday']
+cols = ['precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday','dt',
+        'day',
+        'year']
 
 # 特征量处理
 transformer = RobustScaler()
@@ -88,26 +98,38 @@ checkpoint = ModelCheckpoint(
 )
 
 # 2. 定义模型
+l1 = 128
+d1 = 0.4
+l2 = 64
+d2 = 0.3
 model = Sequential()
-model.add(LSTM(64,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
-model.add(Dropout(0.2))
+model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
+model.add(Dropout(d1))
 
-model.add(LSTM(32, activation='relu'))
-model.add(Dropout(0.3))
+model.add(LSTM(l2, activation='relu'))
+model.add(Dropout(d2))
+
+# model.add(Dense(4,activation='relu'))
+# model.add(Dropout(0.4))
 
 model.add(Dense(1))
 
 model.compile(optimizer='adam', loss='mse')
 
 # 3. 训练模型 加入checkpoint回调
+epochs = 2000
+batch_size = 256
 history = model.fit(
     x_train, y_train,
     validation_data=(x_test, y_test),
-    epochs=2000,
-    batch_size=256,
+    epochs=epochs,
+    batch_size=batch_size,
     shuffle=True,
     callbacks=[checkpoint]  # 加入 checkpoint 回调
 )
+
+# 记录结束时间
+end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
 # 4. 训练完成后可以保存最终模型（保存整个模型，包含架构和权重）
 model.save('./model/final_bike_usage_model.keras')
@@ -129,11 +151,16 @@ y_test_inv = trips_transformer.inverse_transform(y_test.reshape(1,-1))
 
 # 均方根误差
 from sklearn.metrics import mean_squared_error, r2_score
-rmse_lstm = np.sqrt(mean_squared_error(y_test_inv, y_pred_inv))
+rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv, y_pred_inv)),2)
 print(rmse_lstm)
 
+# 记录数据指标
+new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
+save_data = train_df._append(new_df)
+save_data.to_excel('train.xlsx',index=False)
+
 # 绘图
-plt.figure(figsize=(15,5))
+plt.figure(figsize=(12,4))
 plt.plot(y_test_inv.flatten(),marker='.',label="true")
 plt.plot(y_pred_inv.flatten(),marker='.',label="pred")
 plt.title('LSTM')
