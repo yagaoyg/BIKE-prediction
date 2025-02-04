@@ -23,7 +23,22 @@ else:
 data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                    parse_dates=['date'],
                    index_col=['date'],
-                   usecols=['date','trips','precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday','month','dt','day','year'])
+                   usecols=['date',
+                            'trips',
+                            'precipitation',
+                            'snowfall',
+                            'max_t',
+                            'min_t',
+                            # 'average_wind_speed',
+                            'dow',
+                            'holiday',
+                            # 'stations_in_service',
+                            'weekday',
+                            'weekday_non_holiday',
+                            'month',
+                            'dt',
+                            'day',
+                            'year'])
 
 # 引入数据指标记录表
 train_df = pd.read_excel('train.xlsx')
@@ -48,7 +63,17 @@ train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
 # print(len(train_data), len(test_data))
 
 # 选取特征
-cols = ['precipitation','snowfall','max_t','min_t','dow','holiday','weekday','weekday_non_holiday','dt',
+cols = ['precipitation',
+        'snowfall',
+        'max_t',
+        'min_t',
+        # 'average_wind_speed',
+        'dow',
+        'holiday',
+        # 'stations_in_service',
+        'weekday',
+        'weekday_non_holiday',
+        'dt',
         'day',
         'year']
 
@@ -98,9 +123,9 @@ checkpoint = ModelCheckpoint(
 )
 
 # 2. 定义模型
-l1 = 128
-d1 = 0.4
-l2 = 64
+l1 = 144
+d1 = 0.45
+l2 = 80
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -116,9 +141,11 @@ model.add(Dense(1))
 
 model.compile(optimizer='adam', loss='mse')
 
+# model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
+
 # 3. 训练模型 加入checkpoint回调
 epochs = 2000
-batch_size = 256
+batch_size = 128
 history = model.fit(
     x_train, y_train,
     validation_data=(x_test, y_test),
@@ -135,7 +162,7 @@ end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 model.save('./model/final_bike_usage_model.keras')
 
 # 5. 在需要加载已保存模型的地方，可以使用 load_model
-# model = load_model('./model/bike_usage_model.keras')  # 加载保存的最佳模型
+# model = load_model('./model/bike_pred_model.keras')  # 加载保存的最佳模型
 # model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
 
 # 绘制训练损失和验证损失的变化曲线
