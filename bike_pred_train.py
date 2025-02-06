@@ -56,7 +56,7 @@ start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
 # 分割用于训练的数据和用于测试的数据
 # 90% 用于训练，10% 用于测试
-train_percentage = 0.9
+train_percentage = 0.8
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
