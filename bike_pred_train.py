@@ -29,7 +29,7 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                             'snowfall',
                             'max_t',
                             'min_t',
-                            # 'average_wind_speed',
+                            'average_wind_speed',
                             'dow',
                             'holiday',
                             # 'stations_in_service',
@@ -56,7 +56,7 @@ start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
 # 分割用于训练的数据和用于测试的数据
 # 90% 用于训练，10% 用于测试
-train_percentage = 0.8
+train_percentage = 0.9
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
@@ -67,7 +67,7 @@ cols = ['precipitation',
         'snowfall',
         'max_t',
         'min_t',
-        # 'average_wind_speed',
+        'average_wind_speed',
         'dow',
         'holiday',
         # 'stations_in_service',
@@ -123,9 +123,9 @@ checkpoint = ModelCheckpoint(
 )
 
 # 2. 定义模型
-l1 = 128
-d1 = 0.45
-l2 = 80
+l1 = 100
+d1 = 0.4
+l2 = 64
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -140,8 +140,6 @@ model.add(Dropout(d2))
 model.add(Dense(1))
 
 model.compile(optimizer='adam', loss='mse')
-
-# model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
 
 # 3. 训练模型 加入checkpoint回调
 epochs = 2000
@@ -171,6 +169,8 @@ plt.plot(history.history['val_loss'],label='vall loss')
 plt.legend()
 plt.show()
 
+model = load_model('./model/bike_pred_model.keras')  # 加载模型
+
 # 在测试集上进行预测
 y_pred = model.predict(x_test)
 y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1,-1))
@@ -181,11 +181,6 @@ from sklearn.metrics import mean_squared_error, r2_score
 rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv, y_pred_inv)),2)
 print(rmse_lstm)
 
-# 记录数据指标
-new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
-save_data = train_df._append(new_df)
-save_data.to_excel('train.xlsx',index=False)
-
 # 绘图
 plt.figure(figsize=(12,4))
 plt.plot(y_test_inv.flatten(),marker='.',label="true")
@@ -193,3 +188,8 @@ plt.plot(y_pred_inv.flatten(),marker='.',label="pred")
 plt.title('LSTM')
 plt.legend()
 plt.show()
+
+# 记录数据指标
+new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
+save_data = train_df._append(new_df)
+save_data.to_excel('train.xlsx',index=False)
