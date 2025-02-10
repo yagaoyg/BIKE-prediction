@@ -123,7 +123,7 @@ checkpoint = ModelCheckpoint(
 )
 
 # 2. 定义模型
-l1 = 100
+l1 = 144
 d1 = 0.4
 l2 = 80
 d2 = 0.3
