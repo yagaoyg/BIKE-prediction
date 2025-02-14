@@ -125,7 +125,7 @@ checkpoint = ModelCheckpoint(
 # 2. 定义模型
 l1 = 144
 d1 = 0.4
-l2 = 80
+l2 = 96
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
