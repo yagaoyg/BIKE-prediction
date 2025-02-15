@@ -125,7 +125,7 @@ checkpoint = ModelCheckpoint(
 # 2. 定义模型
 l1 = 144
 d1 = 0.4
-l2 = 96
+l2 = 80
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -193,3 +193,4 @@ plt.show()
 new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
 save_data = train_df._append(new_df)
 save_data.to_excel('train.xlsx',index=False)
+print('数据记录完成')
