@@ -149,7 +149,7 @@ for i in range(repeat):
     model.compile(optimizer='adam', loss='mse')
 
     # 3. 训练模型 加入checkpoint回调
-    epochs = 1500
+    epochs = 2000
     batch_size = 128
     history = model.fit(
         x_train, y_train,
@@ -170,7 +170,7 @@ for i in range(repeat):
     # model = load_model('./model/bike_pred_model.keras')  # 加载保存的最佳模型
     # model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
     
-    min_val_loss = round(min(history.history['val_loss']),2)
+    min_val_loss = round(min(history.history['val_loss']),5)
     print(f"验证损失的最小值: {min_val_loss}")
 
     # 绘制训练损失和验证损失的变化曲线
@@ -178,7 +178,7 @@ for i in range(repeat):
     plt.plot(history.history['val_loss'],label='vall loss')
     plt.legend()
     # plt.show()
-    plt.savefig(base_path + str(i) +'/loss ' + min_val_loss + '.png')
+    plt.savefig(base_path + str(i) +'/loss ' + str(min_val_loss) + '.png')
 
     model = load_model(base_path + str(i) +'/bike_pred_model.keras')  # 加载模型
 
@@ -199,7 +199,7 @@ for i in range(repeat):
     plt.title('LSTM')
     plt.legend()
     # plt.show()
-    plt.savefig(base_path + str(i) +'/LSTM rmse '+ str(rmse_lstm) +'.png')
+    plt.savefig(base_path + str(i) +'/rmse '+ str(rmse_lstm) +'LSTM.png')
 
     # 记录数据指标
     new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
