@@ -40,9 +40,6 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                             'day',
                             'year'])
 
-# 引入数据指标记录表
-train_df = pd.read_excel('train.xlsx')
-
 # 展示前20行
 # print(data.head(20))
 
@@ -107,9 +104,15 @@ x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 
+# 临时路径 用于保存训练过程中回调函数保存的模型
+temp_path = './model/temp/temp_bike_pred_model.keras'
+
 # 设定程序一次训练的模型数量
-repeat = 10
+repeat = 2
 for i in range(repeat):
+    
+    # 引入数据指标记录表
+    train_df = pd.read_excel('train.xlsx')
 
     # 记录开始时间
     start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
@@ -122,7 +125,7 @@ for i in range(repeat):
 
     # 1. 在训练时使用 ModelCheckpoint 回调保存最佳模型
     checkpoint = ModelCheckpoint(
-        model_save_path,                # 模型保存路径
+        temp_path,                # 模型保存路径
         monitor='val_loss',             # 监视的指标，这里监视验证集损失
         save_best_only=True,            # 仅在验证损失最小时保存
         save_weights_only=False,        # 保存整个模型（包括模型架构、权重、优化器状态）
@@ -149,7 +152,7 @@ for i in range(repeat):
     model.compile(optimizer='adam', loss='mse')
 
     # 3. 训练模型 加入checkpoint回调
-    epochs = 2000
+    epochs = 800
     batch_size = 128
     history = model.fit(
         x_train, y_train,
@@ -164,7 +167,7 @@ for i in range(repeat):
     end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
     # 4. 训练完成后可以保存最终模型（保存整个模型，包含架构和权重）
-    model.save(base_path + str(i) +'/final_bike_usage_model.keras')
+    # model.save(base_path + str(i) +'/final_bike_usage_model.keras')
 
     # 5. 在需要加载已保存模型的地方，可以使用 load_model
     # model = load_model('./model/bike_pred_model.keras')  # 加载保存的最佳模型
@@ -174,13 +177,14 @@ for i in range(repeat):
     print(f"验证损失的最小值: {min_val_loss}")
 
     # 绘制训练损失和验证损失的变化曲线
+    plt.figure(figsize=(6,4))
     plt.plot(history.history['loss'],label='train loss')
     plt.plot(history.history['val_loss'],label='vall loss')
     plt.legend()
     # plt.show()
     plt.savefig(base_path + str(i) +'/loss ' + str(min_val_loss) + '.png')
 
-    model = load_model(base_path + str(i) +'/bike_pred_model.keras')  # 加载模型
+    model = load_model(temp_path)  # 加载模型
 
     # 在测试集上进行预测
     y_pred = model.predict(x_test)
@@ -200,9 +204,12 @@ for i in range(repeat):
     plt.legend()
     # plt.show()
     plt.savefig(base_path + str(i) +'/rmse '+ str(rmse_lstm) +'LSTM.png')
+    
+    # 训练完成后保存最终模型（保存整个模型，包含架构和权重）
+    model.save(base_path + str(i) +'/final_bike_usage_model.keras')
 
     # 记录数据指标
-    new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
+    new_df = pd.DataFrame([[start_time,end_time,i,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
     save_data = train_df._append(new_df)
     save_data.to_excel('train.xlsx',index=False)
     print('数据记录完成')
