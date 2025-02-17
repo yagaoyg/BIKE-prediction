@@ -108,7 +108,7 @@ base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 temp_path = './model/temp/temp_bike_pred_model.keras'
 
 # 设定程序一次训练的模型数量
-repeat = 2
+repeat = 10
 for i in range(repeat):
     
     # 引入数据指标记录表
@@ -135,7 +135,7 @@ for i in range(repeat):
     # 2. 定义模型
     l1 = 144
     d1 = 0.4
-    l2 = 80
+    l2 = 96
     d2 = 0.3
     model = Sequential()
     model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
