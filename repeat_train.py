@@ -108,7 +108,7 @@ base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 temp_path = './model/temp/temp_bike_pred_model.keras'
 
 # 设定程序一次训练的模型数量
-repeat = 10
+repeat = 20
 for i in range(repeat):
     
     # 引入数据指标记录表
