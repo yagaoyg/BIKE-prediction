@@ -40,7 +40,7 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                             'day',
                             'year'])
 
-train_percentage = 0.8
+train_percentage = 0.9
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
