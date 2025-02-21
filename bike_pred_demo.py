@@ -3,21 +3,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-# import os
-# import tensorflow as tf
-# from datetime import datetime
 from sklearn.preprocessing import RobustScaler
-# from keras.api.callbacks import ModelCheckpoint
-from keras.api.models import Sequential,load_model
-# from keras.api.layers import Dense,Flatten,Dropout,LSTM
+from keras.api.models import load_model
 
 sns.set_style("darkgrid")
-
-# 检查 TensorFlow 是否能够检测到 GPU
-# if tf.config.list_physical_devices('GPU'):
-#     print("GPU is available!")
-# else:
-#     print("GPU is not available.")
 
 # 引入数据集
 data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
@@ -29,7 +18,7 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                             'snowfall',
                             'max_t',
                             'min_t',
-                            # 'average_wind_speed',
+                            'average_wind_speed',
                             'dow',
                             'holiday',
                             # 'stations_in_service',
@@ -40,34 +29,17 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                             'day',
                             'year'])
 
-# 展示前20行
-# print(data.head(20))
-
-# 按日期显示骑行数据
-# plt.figure(figsize=(15,5))
-# sns.lineplot(data=data, x=data.index, y=data.trips)
-# plt.show()
-
-# 分割用于训练的数据和用于测试的数据
-# 90% 用于训练，10% 用于测试
-# train_percentage = 0.9
-# train_size = int(len(data) * train_percentage)
-# test_size = len(data) - train_size
-# train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
-# print(len(train_data), len(test_data))
-
-# 分割用于预测的时间段 表示为数据集中后百分之几 默认后10%
-pred_percentage = 0.1
-pred_size = int(len(data) * pred_percentage)
-pred_data = data.iloc[-pred_size:]
-test_data = data.iloc[-pred_size:]
+train_percentage = 0.8
+train_size = int(len(data) * train_percentage)
+test_size = len(data) - train_size
+train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
 
 # 选取特征
 cols = ['precipitation',
         'snowfall',
         'max_t',
         'min_t',
-        # 'average_wind_speed',
+        'average_wind_speed',
         'dow',
         'holiday',
         # 'stations_in_service',
@@ -79,16 +51,16 @@ cols = ['precipitation',
 
 # 特征量处理
 transformer = RobustScaler()
-transformer = transformer.fit(pred_data[cols].to_numpy())
+transformer = transformer.fit(train_data[cols].to_numpy())
 
-pred_data.loc[:,cols] = transformer.transform(pred_data[cols].to_numpy())
+train_data.loc[:,cols] = transformer.transform(train_data[cols].to_numpy())
 test_data.loc[:,cols] = transformer.transform(test_data[cols].to_numpy())
 
 # 目标量处理
 trips_transformer = RobustScaler()
-trips_transformer = trips_transformer.fit(pred_data[['trips']])
+trips_transformer = trips_transformer.fit(train_data[['trips']])
 
-pred_data.loc[:,'trips'] = trips_transformer.transform(pred_data[['trips']])
+train_data.loc[:,'trips'] = trips_transformer.transform(train_data[['trips']])
 test_data.loc[:,'trips'] = trips_transformer.transform(test_data[['trips']])
 
 # 将输入的时序数据 x 和标签 y 转换成适合 LSTM 模型训练的数据格式
@@ -102,90 +74,22 @@ def create_dataset(x, y, time_steps=1):
   
 time_steps = 1
 
-x_pred, y_pred = create_dataset(pred_data, pred_data['trips'], time_steps)
+x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
+    
+model_path = './best_model/2/final_bike_usage_model.keras'
 
-# print(x_train.shape, y_train.shape)
-
-# 设置保存模型的路径
-# model_save_path = './model/bike_pred_model.keras'
-
-# 创建保存模型的文件夹（如果没有的话）
-# os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
-
-# 1. 在训练时使用 ModelCheckpoint 回调保存最佳模型
-# checkpoint = ModelCheckpoint(
-#     model_save_path,                # 模型保存路径
-#     monitor='val_loss',             # 监视的指标，这里监视验证集损失
-#     save_best_only=True,            # 仅在验证损失最小时保存
-#     save_weights_only=False,        # 保存整个模型（包括模型架构、权重、优化器状态）
-#     verbose=1                       # 输出信息
-# )
-
-# 2. 定义模型
-# l1 = 160
-# d1 = 0.4
-# l2 = 80
-# d2 = 0.3
-# model = Sequential()
-# model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
-# model.add(Dropout(d1))
-
-# model.add(LSTM(l2, activation='relu'))
-# model.add(Dropout(d2))
-
-# model.add(Dense(4,activation='relu'))
-# model.add(Dropout(0.4))
-
-# model.add(Dense(1))
-
-# model.compile(optimizer='adam', loss='mse')
-
-# model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
-# model = load_model('./model/bike_pred_model.keras')  # 加载保存的最佳模型
-
-# 3. 训练模型 加入checkpoint回调
-# epochs = 2000
-# batch_size = 128
-# history = model.fit(
-#     x_train, y_train,
-#     validation_data=(x_test, y_test),
-#     epochs=epochs,
-#     batch_size=batch_size,
-#     shuffle=True,
-#     callbacks=[checkpoint]  # 加入 checkpoint 回调
-# )
-
-# 记录结束时间
-# end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
-
-# 4. 训练完成后可以保存最终模型（保存整个模型，包含架构和权重）
-# model.save('./model/final_bike_usage_model.keras')
-
-# 5. 在需要加载已保存模型的地方，可以使用 load_model
-# model = load_model('./model/bike_pred_model.keras')  # 加载保存的最佳模型
-model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
-
-# 绘制训练损失和验证损失的变化曲线
-# plt.plot(history.history['loss'],label='train loss')
-# plt.plot(history.history['val_loss'],label='vall loss')
-# plt.legend()
-# plt.show()
+model = load_model(model_path)  # 加载模型
 
 # 在测试集上进行预测
-y_pred_data = model.predict(x_pred)
-y_pred_inv = trips_transformer.inverse_transform(y_pred_data.reshape(1,-1))
+y_pred = model.predict(x_test)
+y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1,-1))
 y_test_inv = trips_transformer.inverse_transform(y_test.reshape(1,-1))
 
 # 均方根误差
 from sklearn.metrics import mean_squared_error, r2_score
 rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv, y_pred_inv)),2)
 print(rmse_lstm)
-
-# 记录数据指标
-# new_df = pd.DataFrame([[start_time,end_time,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm]],columns=['start_time','end_time','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm'])
-# save_data = train_df._append(new_df)
-# save_data.to_excel('train.xlsx',index=False)
 
 # 绘图
 plt.figure(figsize=(12,4))

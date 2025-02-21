@@ -40,21 +40,10 @@ data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
                             'day',
                             'year'])
 
-# 展示前20行
-# print(data.head(20))
-
-# 按日期显示骑行数据
-# plt.figure(figsize=(15,5))
-# sns.lineplot(data=data, x=data.index, y=data.trips)
-# plt.show()
-
-# 分割用于训练的数据和用于测试的数据
-# 90% 用于训练，10% 用于测试
-train_percentage = 0.9
+train_percentage = 0.8
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
-# print(len(train_data), len(test_data))
 
 # 选取特征
 cols = ['precipitation',
@@ -99,8 +88,6 @@ time_steps = 1
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
 
-# print(x_train.shape, y_train.shape)
-
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 
@@ -135,7 +122,7 @@ for i in range(repeat):
     # 2. 定义模型
     l1 = 144
     d1 = 0.4
-    l2 = 96
+    l2 = 80
     d2 = 0.3
     model = Sequential()
     model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -143,9 +130,6 @@ for i in range(repeat):
 
     model.add(LSTM(l2, activation='relu'))
     model.add(Dropout(d2))
-
-    # model.add(Dense(4,activation='relu'))
-    # model.add(Dropout(0.4))
 
     model.add(Dense(1))
 
@@ -165,13 +149,6 @@ for i in range(repeat):
 
     # 记录结束时间
     end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
-
-    # 4. 训练完成后可以保存最终模型（保存整个模型，包含架构和权重）
-    # model.save(base_path + str(i) +'/final_bike_usage_model.keras')
-
-    # 5. 在需要加载已保存模型的地方，可以使用 load_model
-    # model = load_model('./model/bike_pred_model.keras')  # 加载保存的最佳模型
-    # model = load_model('./model/final_bike_usage_model.keras')  # 加载最终模型
     
     min_val_loss = round(min(history.history['val_loss']),6)
     # print(f"验证损失的最小值: {min_val_loss}")
