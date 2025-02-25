@@ -18,9 +18,11 @@ if tf.config.list_physical_devices('GPU'):
     print("GPU is available!")
 else:
     print("GPU is not available.")
+    
+data_name = 'daily_citi_bike_trip_counts_and_weather'
 
 # 引入数据集
-data = pd.read_csv('./data/daily_citi_bike_trip_counts_and_weather.csv',
+data = pd.read_csv('./data/' + data_name + '.csv',
                    parse_dates=['date'],
                    index_col=['date'],
                    usecols=['date',
@@ -186,7 +188,7 @@ for i in range(repeat):
     model.save(base_path + str(i) +'/final_bike_usage_model.keras')
 
     # 记录数据指标
-    new_df = pd.DataFrame([[start_time,end_time,i,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm,min_val_loss]],columns=['start_time','end_time','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
+    new_df = pd.DataFrame([[start_time,end_time,data_name,i,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm,min_val_loss]],columns=['start_time','end_time','data_name','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
     save_data = train_df._append(new_df)
     save_data.to_excel('train.xlsx',index=False)
     print('数据记录完成')

@@ -19,48 +19,40 @@ if tf.config.list_physical_devices('GPU'):
 else:
     print("GPU is not available.")
     
-data_name = 'daily_citi_bike_trip_counts_and_weather'
+data_name = 'china_bike_data_2022'
 
 # 引入数据集
 data = pd.read_csv('./data/' + data_name + '.csv',
-                   parse_dates=['date'],
-                   index_col=['date'],
-                   usecols=['date',
-                            'trips',
-                            'precipitation',
-                            'snowfall',
-                            'max_t',
-                            'min_t',
-                            'average_wind_speed',
-                            'dow',
+                   parse_dates=['datetime'],
+                   index_col=['datetime'],
+                   usecols=['datetime',
+                            'season',
                             'holiday',
-                            # 'stations_in_service',
-                            'weekday',
-                            'weekday_non_holiday',
-                            'month',
-                            'dt',
-                            'day',
-                            'year'])
+                            'workingday',
+                            'weather',
+                            'temp',
+                            'atemp',
+                            'humidity',
+                            'windspeed',
+                            'count'])
+
+# print(data.head())
 
 train_percentage = 0.9
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
+# print(len(train_data), len(test_data))
 
 # 选取特征
-cols = ['precipitation',
-        'snowfall',
-        'max_t',
-        'min_t',
-        'average_wind_speed',
-        'dow',
+cols = ['season',
         'holiday',
-        # 'stations_in_service',
-        'weekday',
-        'weekday_non_holiday',
-        'dt',
-        'day',
-        'year']
+        'workingday',
+        'weather',
+        'temp',
+        'atemp',
+        'humidity',
+        'windspeed']
 
 # 特征量处理
 transformer = RobustScaler()
@@ -71,10 +63,10 @@ test_data.loc[:,cols] = transformer.transform(test_data[cols].to_numpy())
 
 # 目标量处理
 trips_transformer = RobustScaler()
-trips_transformer = trips_transformer.fit(train_data[['trips']])
+trips_transformer = trips_transformer.fit(train_data[['count']])
 
-train_data.loc[:,'trips'] = trips_transformer.transform(train_data[['trips']])
-test_data.loc[:,'trips'] = trips_transformer.transform(test_data[['trips']])
+train_data.loc[:,'count'] = trips_transformer.transform(train_data[['count']])
+test_data.loc[:,'count'] = trips_transformer.transform(test_data[['count']])
 
 # 将输入的时序数据 x 和标签 y 转换成适合 LSTM 模型训练的数据格式
 def create_dataset(x, y, time_steps=1):
@@ -87,8 +79,8 @@ def create_dataset(x, y, time_steps=1):
   
 time_steps = 1
 
-x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
-x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
+x_train, y_train = create_dataset(train_data, train_data['count'], time_steps)
+x_test, y_test = create_dataset(test_data, test_data['count'], time_steps)
 
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
@@ -118,9 +110,9 @@ verbose=1                       # 输出信息
 )
 
 # 2. 定义模型
-l1 = 72
+l1 = 64
 d1 = 0.4
-l2 = 40
+l2 = 32
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -134,7 +126,7 @@ model.add(Dense(1))
 model.compile(optimizer='adam', loss='mse')
 
 # 3. 训练模型 加入checkpoint回调
-epochs = 800
+epochs = 1200
 batch_size = 128
 history = model.fit(
 x_train, y_train,
