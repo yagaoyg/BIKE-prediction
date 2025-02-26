@@ -85,7 +85,7 @@ def create_dataset(x, y, time_steps=1):
         ys.append(y.iloc[i + time_steps])
     return np.array(xs), np.array(ys)
   
-time_steps = 1
+time_steps = 2
 
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)

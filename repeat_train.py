@@ -42,7 +42,8 @@ data = pd.read_csv('./data/' + data_name + '.csv',
                             'day',
                             'year'])
 
-train_percentage = 0.8
+# 80%数据用于训练，20%数据用于测试
+train_percentage = 0.9
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
@@ -97,7 +98,7 @@ base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 temp_path = './model/temp/temp_bike_pred_model.keras'
 
 # 设定程序一次训练的模型数量
-repeat = 40
+repeat = 20
 for i in range(repeat):
     
     # 引入数据指标记录表
@@ -114,7 +115,7 @@ for i in range(repeat):
 
     # 1. 在训练时使用 ModelCheckpoint 回调保存最佳模型
     checkpoint = ModelCheckpoint(
-        temp_path,                # 模型保存路径
+        temp_path,                      # 模型保存路径
         monitor='val_loss',             # 监视的指标，这里监视验证集损失
         save_best_only=True,            # 仅在验证损失最小时保存
         save_weights_only=False,        # 保存整个模型（包括模型架构、权重、优化器状态）
