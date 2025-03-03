@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import stats
+from sklearn.metrics import mutual_info_score
+from statsmodels.tsa.seasonal import seasonal_decompose
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 
 sns.set_style("darkgrid")
     
@@ -105,4 +110,76 @@ plt.show()
 # plt.figure(figsize=(10,4))
 # sns.barplot(data=dow_data, x='dow', y=dow_data.trips,palette='viridis')
 # plt.show()
+
+# 是否假期与骑行次数的相关性分析
+# print("描述统计:")
+# print(data.groupby('holiday')['trips'].describe())
+
+# 年份、月中日期与骑行次数的关系
+# ====== 关联性强弱判断 ======
+# def check_association(feature, target):
+#     """快速评估特征与目标变量的关联性"""
+#     # 数值型关联
+#     if feature.nunique() > 10:
+#         corr = stats.pearsonr(feature, target)
+#         print(f"皮尔逊相关系数: {corr[0]:.2f} (p={corr[1]:.3f})")
+#         return abs(corr[0])
+    
+#     # 类别型关联
+#     else:
+#       groups = [target[feature == val] for val in feature.unique()]
+#       h_stat, p_val = stats.kruskal(*groups)
+#       print(f"Kruskal-Wallis检验: H={h_stat:.1f} (p={p_val:.3f})")
+#       return h_stat / 100  # 标准化效应量
+
+# # 评估年份关联性
+# print("年份分析:")
+# year_strength = check_association(data['year'], data['trips'])
+
+# # 评估日期关联性
+# print("\n每月某日分析:")
+# day_strength = check_association(data['day'], data['trips'])
+
+# # 评估星期关联性
+# print("\n星期分析:")
+# weekday_strength = check_association(data['weekday'], data['trips'])
+
+# # 评估假期关联性
+# print("\n假期分析:")
+# holiday_strength = check_association(data['holiday'], data['trips'])
+
+# # ====== 可视化验证 ======
+# plt.figure(figsize=(12,5))
+
+# # 年份趋势
+# plt.subplot(1,2,1)
+# sns.lineplot(x='year', y='trips', data=data, ci=None, estimator='mean')
+# plt.title('nian du yong liang')
+
+# # 日分布
+# plt.subplot(1,2,2)
+# sns.boxplot(x='day', y='trips', data=data, showfliers=False)
+# plt.xticks(rotation=90)
+# plt.title('mei ri yong liang')
+
+# plt.tight_layout()
+# plt.show()
+
+# # 假期分布
+# plt.figure(figsize=(10,5))
+# sns.barplot(x='holiday', y='trips', data=data, palette='viridis',estimator='mean')
+# plt.title('holiday yong liang')
+# plt.show()
+
+# # ====== 决策建议 ======
+# thresholds = {
+#     '弱关联': 0.1,
+#     '极弱关联': 0.05
+# }
+
+# print(f"\n决策建议:")
+# print(f"年份关联强度: {year_strength:.2f}（{'可用' if year_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+# print(f"日期关联强度: {day_strength:.2f}（{'可用' if day_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+# print(f"星期关联强度: {weekday_strength:.2f}（{'可用' if weekday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+# print(f"假期关联强度: {holiday_strength:.2f}（{'可用' if holiday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
 
