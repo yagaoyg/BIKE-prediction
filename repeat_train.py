@@ -24,23 +24,8 @@ data_name = 'daily_citi_bike_trip_counts_and_weather'
 # 引入数据集
 data = pd.read_csv('./data/' + data_name + '.csv',
                    parse_dates=['date'],
-                   index_col=['date'],
-                   usecols=['date',
-                            'trips',
-                            'precipitation',
-                            'snowfall',
-                            'max_t',
-                            'min_t',
-                            'average_wind_speed',
-                            'dow',
-                            'holiday',
-                            # 'stations_in_service',
-                            'weekday',
-                            'weekday_non_holiday',
-                            'month',
-                            'dt',
-                            'day',
-                            'year'])
+                   index_col=['date']
+)
 
 # 80%数据用于训练，20%数据用于测试
 train_percentage = 0.9
@@ -49,19 +34,23 @@ test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
 
 # 选取特征
-cols = ['precipitation',
-        'snowfall',
-        'max_t',
-        'min_t',
-        'average_wind_speed',
-        'dow',
-        'holiday',
-        # 'stations_in_service',
-        'weekday',
-        'weekday_non_holiday',
-        'dt',
-        'day',
-        'year']
+cols = [
+    'precipitation',
+    'snow_depth',
+    'snowfall',
+    'max_t',
+    'min_t',
+    'average_wind_speed',
+    # 'dow',
+    'year',
+    'month',
+    # 'holiday',
+    # 'stations_in_service',
+    'weekday',
+    'weekday_non_holiday',
+    'dt',
+    'season'
+    ]
 
 # 特征量处理
 transformer = RobustScaler()
@@ -98,7 +87,7 @@ base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 temp_path = './model/temp/temp_bike_pred_model.keras'
 
 # 设定程序一次训练的模型数量
-repeat = 20
+repeat = 10
 for i in range(repeat):
     
     # 引入数据指标记录表

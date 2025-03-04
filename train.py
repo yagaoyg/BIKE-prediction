@@ -25,22 +25,23 @@ data_name = 'daily_citi_bike_trip_counts_and_weather'
 data = pd.read_csv('./data/' + data_name + '.csv',
                    parse_dates=['date'],
                    index_col=['date'],
-                   usecols=['date',
-                            'trips',
-                            'precipitation',
-                            'snowfall',
-                            'max_t',
-                            'min_t',
-                            'average_wind_speed',
-                            'dow',
-                            'holiday',
-                            # 'stations_in_service',
-                            'weekday',
-                            'weekday_non_holiday',
-                            'month',
-                            'dt',
-                            'day',
-                            'year'])
+                #    usecols=['date',
+                #             'trips',
+                #             'precipitation',
+                #             'snowfall',
+                #             'max_t',
+                #             'min_t',
+                #             'average_wind_speed',
+                #             'dow',
+                #             'holiday',
+                #             # 'stations_in_service',
+                #             'weekday',
+                #             'weekday_non_holiday',
+                #             'month',
+                #             'dt',
+                #             'day',
+                #             'year']
+)
 
 train_percentage = 0.9
 train_size = int(len(data) * train_percentage)
@@ -48,19 +49,23 @@ test_size = len(data) - train_size
 train_data,test_data = data.iloc[0:train_size],data.iloc[train_size:len(data)]
 
 # 选取特征
-cols = ['precipitation',
-        'snowfall',
-        'max_t',
-        'min_t',
-        'average_wind_speed',
-        'dow',
-        'holiday',
-        # 'stations_in_service',
-        'weekday',
-        'weekday_non_holiday',
-        'dt',
-        'day',
-        'year']
+cols = [
+    'precipitation',
+    'snow_depth',
+    'snowfall',
+    'max_t',
+    'min_t',
+    'average_wind_speed',
+    'dow',
+    'year',
+    'month',
+    'holiday',
+    # 'stations_in_service',
+    'weekday',
+    'weekday_non_holiday',
+    'dt',
+    'season'
+    ]
 
 # 特征量处理
 transformer = RobustScaler()
@@ -85,7 +90,7 @@ def create_dataset(x, y, time_steps=1):
         ys.append(y.iloc[i + time_steps])
     return np.array(xs), np.array(ys)
   
-time_steps = 2
+time_steps = 1
 
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
@@ -118,9 +123,9 @@ verbose=1                       # 输出信息
 )
 
 # 2. 定义模型
-l1 = 72
+l1 = 144
 d1 = 0.4
-l2 = 40
+l2 = 80
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -129,20 +134,23 @@ model.add(Dropout(d1))
 model.add(LSTM(l2, activation='relu'))
 model.add(Dropout(d2))
 
+# model.add(Dense(64, activation='relu'))  # 新增隐藏层
 model.add(Dense(1))
 
 model.compile(optimizer='adam', loss='mse')
 
 # 3. 训练模型 加入checkpoint回调
-epochs = 800
+epochs = 2000
 batch_size = 128
+
+# 进行训练
 history = model.fit(
-x_train, y_train,
-validation_data=(x_test, y_test),
-epochs=epochs,
-batch_size=batch_size,
-shuffle=True,
-callbacks=[checkpoint]  # 加入 checkpoint 回调
+    x_train, y_train,
+    validation_data=(x_test, y_test),
+    epochs=epochs,
+    batch_size=batch_size,
+    shuffle=True,
+    callbacks=[checkpoint]  # 加入 checkpoint 回调
 )
 
 # 记录结束时间
