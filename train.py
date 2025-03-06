@@ -124,8 +124,8 @@ verbose=1                       # 输出信息
 
 # 2. 定义模型
 l1 = 144
-d1 = 0.4
-l2 = 80
+d1 = 0.3
+l2 = 96
 d2 = 0.3
 model = Sequential()
 model.add(LSTM(l1,activation='relu',return_sequences=True,input_shape=(x_train.shape[1],x_train.shape[2])))
@@ -166,7 +166,6 @@ plt.plot(history.history['val_loss'],label='vall loss')
 plt.legend()
 plt.savefig(base_path +'/loss ' + str(min_val_loss) + '.png')
 plt.show()
-
 
 model = load_model(temp_path)  # 加载模型
 
