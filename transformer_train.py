@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error
 
 # 配置设置
 sns.set_style("darkgrid")
-torch.manual_seed(42)
+# torch.manual_seed(42)
 
 # 硬件检测
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,11 +40,12 @@ class BikeDataset(Dataset):
 
 # Transformer模型类
 class BikeTransformer(nn.Module):
-    def __init__(self, input_dim, num_heads=4, ff_dim=256, dropout=0.1, num_layers=2):
+    def __init__(self, input_dim, num_heads=2, ff_dim=512, dropout=0.3, num_layers=3):
         super().__init__()
-        self.position_encoding = PositionalEncoding(input_dim)
+        self.input_proj = nn.Linear(input_dim, 32)  # 维度提升
+        
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=input_dim,
+            d_model=32,
             nhead=num_heads,
             dim_feedforward=ff_dim,
             dropout=dropout,
@@ -52,14 +53,19 @@ class BikeTransformer(nn.Module):
             batch_first=True
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
-        self.global_pool = nn.AdaptiveAvgPool1d(1)
-        self.regressor = nn.Linear(input_dim, 1)
         
+        self.decoder = nn.Sequential(
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, 1)
+        )
+
     def forward(self, x):
-        x = self.position_encoding(x)
+        x = self.input_proj(x)  # [batch, seq_len, 32]
         x = self.encoder(x)
-        x = self.global_pool(x.transpose(1, 2)).squeeze(-1)
-        return self.regressor(x)
+        x = x.mean(dim=1)  # 时序平均池化
+        return self.decoder(x)
 
 # 位置编码模块
 class PositionalEncoding(nn.Module):
@@ -158,95 +164,92 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
     return history, best_loss
 
 # 主程序流程
-def main():
-    # 数据准备
-    train_data, test_data, feature_cols, target_col, target_scaler = load_and_preprocess()
-    
-    # 创建数据集
-    TIME_STEPS = 1
-    train_dataset = BikeDataset(train_data, feature_cols, target_col, TIME_STEPS)
-    test_dataset = BikeDataset(test_data, feature_cols, target_col, TIME_STEPS)
-    
-    # 创建数据加载器
-    BATCH_SIZE = 128
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
-    
-    # 模型配置
-    model = BikeTransformer(
-        input_dim=len(feature_cols),
-        num_heads=7,
-        ff_dim=256,
-        dropout=0.2,
-        num_layers=2
-    ).to(device)
-    
-    # 优化配置
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=15, verbose=True
-    )
-    
-    # 创建保存目录
-    base_path = f"./model/{datetime.now():%Y-%m-%d_%H-%M-%S}"
-    os.makedirs(base_path, exist_ok=True)
-    
-    # 模型训练
-    history, best_loss = train_model(
-        model=model,
-        train_loader=train_loader,
-        val_loader=test_loader,
-        criterion=criterion,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        epochs=2000,
-        device=device,
-        save_path=base_path
-    )
-    
-    print(f'最小损失: {best_loss:.6f}')
-    
-    # 加载最佳模型
-    model.load_state_dict(torch.load(os.path.join(base_path, 'best_model.pth')))
-    
-    # 模型评估
-    model.eval()
-    y_pred, y_true = [], []
-    with torch.no_grad():
-        for X_test, y_test in test_loader:
-            X_test = X_test.to(device)
-            outputs = model(X_test).cpu().numpy()
-            y_pred.extend(outputs.squeeze())
-            y_true.extend(y_test.numpy())
-    
-    # 反标准化
-    y_pred_inv = target_scaler.inverse_transform(np.array(y_pred).reshape(-1, 1))
-    y_test_inv = target_scaler.inverse_transform(np.array(y_true).reshape(-1, 1))
-    
-    # 计算指标
-    rmse = np.sqrt(mean_squared_error(y_test_inv, y_pred_inv))
-    print(f'Test RMSE: {rmse:.2f}')
-    
-    # 可视化损失曲线
-    plt.figure(figsize=(6,4))
-    plt.plot(history['train_loss'],label='train loss')
-    plt.plot(history['val_loss'],label='vall loss')
-    plt.legend()
-    plt.savefig(base_path +'/loss ' + str(best_loss) + '.png')
-    plt.show()
-    
-    # 可视化结果
-    plt.figure(figsize=(12, 4))
-    plt.plot(y_test_inv, label='True', marker='.', alpha=0.7)
-    plt.plot(y_pred_inv, label='Pred', marker='.', alpha=0.7)
-    plt.title(f'Transformer Prediction (RMSE={rmse:.2f})')
-    plt.legend()
-    plt.savefig(os.path.join(base_path, 'prediction_comparison.png'))
-    plt.show()
-    
-    # 保存完整模型
-    torch.save(model, os.path.join(base_path, 'full_model.pth'))
 
-if __name__ == "__main__":
-    main()
+# 数据准备
+train_data, test_data, feature_cols, target_col, target_scaler = load_and_preprocess()
+
+# 创建数据集
+TIME_STEPS = 1
+train_dataset = BikeDataset(train_data, feature_cols, target_col, TIME_STEPS)
+test_dataset = BikeDataset(test_data, feature_cols, target_col, TIME_STEPS)
+
+# 创建数据加载器
+BATCH_SIZE = 128
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+
+# 模型配置
+model = BikeTransformer(
+    input_dim=len(feature_cols),
+    num_heads=4,
+    ff_dim=256,
+    dropout=0.2,
+    num_layers=2
+).to(device)
+
+# 优化配置
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.5, patience=15, verbose=True
+)
+
+# 创建保存目录
+base_path = f"./model/{datetime.now():%Y-%m-%d_%H-%M-%S}"
+os.makedirs(base_path, exist_ok=True)
+
+# 模型训练
+history, best_loss = train_model(
+    model=model,
+    train_loader=train_loader,
+    val_loader=test_loader,
+    criterion=criterion,
+    optimizer=optimizer,
+    scheduler=scheduler,
+    epochs=2000,
+    device=device,
+    save_path=base_path
+)
+
+print(f'最小损失: {best_loss:.6f}')
+
+# 加载最佳模型
+model.load_state_dict(torch.load(os.path.join(base_path, 'best_model.pth')))
+
+# 模型评估
+model.eval()
+y_pred, y_true = [], []
+with torch.no_grad():
+    for X_test, y_test in test_loader:
+        X_test = X_test.to(device)
+        outputs = model(X_test).cpu().numpy()
+        y_pred.extend(outputs.squeeze())
+        y_true.extend(y_test.numpy())
+
+# 反标准化
+y_pred_inv = target_scaler.inverse_transform(np.array(y_pred).reshape(-1, 1))
+y_test_inv = target_scaler.inverse_transform(np.array(y_true).reshape(-1, 1))
+
+# 计算指标
+rmse = np.sqrt(mean_squared_error(y_test_inv, y_pred_inv))
+print(f'Test RMSE: {rmse:.2f}')
+
+# 可视化损失曲线
+plt.figure(figsize=(6,4))
+plt.plot(history['train_loss'],label='train loss')
+plt.plot(history['val_loss'],label='vall loss')
+plt.legend()
+plt.savefig(base_path +'/loss ' + str(best_loss) + '.png')
+plt.show()
+
+# 可视化结果
+plt.figure(figsize=(12, 4))
+plt.plot(y_test_inv, label='True', marker='.', alpha=0.7)
+plt.plot(y_pred_inv, label='Pred', marker='.', alpha=0.7)
+plt.title(f'Transformer Prediction (RMSE={rmse:.2f})')
+plt.legend()
+plt.savefig(os.path.join(base_path, 'prediction_comparison.png'))
+plt.show()
+
+# 保存完整模型
+torch.save(model, os.path.join(base_path, 'full_model.pth'))

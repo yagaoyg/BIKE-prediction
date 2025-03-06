@@ -175,7 +175,7 @@ y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1,-1))
 y_test_inv = trips_transformer.inverse_transform(y_test.reshape(1,-1))
 
 # 均方根误差
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error
 rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv, y_pred_inv)),2)
 print(rmse_lstm)
 
