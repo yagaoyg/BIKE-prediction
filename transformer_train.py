@@ -1,43 +1,85 @@
-# 自行车使用量预测Transformer完整实现
+# 自行车使用量预测PyTorch实现
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import tensorflow as tf
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
-from keras.api.callbacks import ModelCheckpoint, ReduceLROnPlateau
-from keras.api.models import Model, load_model
-from keras.api.layers import Input, Dense, Dropout, MultiHeadAttention, LayerNormalization, GlobalAveragePooling1D
-from keras.api.optimizers import Adam
 from sklearn.metrics import mean_squared_error
 
 # 配置设置
 sns.set_style("darkgrid")
-tf.keras.utils.set_random_seed(42)  # 固定随机种子
+torch.manual_seed(42)
 
 # 硬件检测
-def check_gpu():
-    gpus = tf.config.list_physical_devices('GPU')
-    if gpus:
-        print(f"GPU可用 - 检测到 {len(gpus)} 块显卡")
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    else:
-        print("GPU不可用，使用CPU")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
-check_gpu()
-
-# 数据加载与预处理
-def load_and_preprocess(data_path='./data/daily_citi_bike_trip_counts_and_weather.csv'):
-    raw_data = pd.read_csv(
-        data_path,
-        parse_dates=['date'],
-        index_col='date'
-    )
+# 自定义数据集类
+class BikeDataset(Dataset):
+    def __init__(self, data, feature_cols, target_col, time_steps=7):
+        self.X, self.y = self.create_sequences(data, feature_cols, target_col, time_steps)
+        
+    def create_sequences(self, data, feature_cols, target_col, time_steps):
+        X, y = [], []
+        for i in range(len(data) - time_steps):
+            X.append(data[feature_cols].iloc[i:i+time_steps].values)
+            y.append(data[target_col].iloc[i+time_steps])
+        return torch.FloatTensor(np.array(X)), torch.FloatTensor(np.array(y))
     
-    # 特征列定义
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
+# Transformer模型类
+class BikeTransformer(nn.Module):
+    def __init__(self, input_dim, num_heads=4, ff_dim=256, dropout=0.1, num_layers=2):
+        super().__init__()
+        self.position_encoding = PositionalEncoding(input_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=input_dim,
+            nhead=num_heads,
+            dim_feedforward=ff_dim,
+            dropout=dropout,
+            activation='gelu',
+            batch_first=True
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.global_pool = nn.AdaptiveAvgPool1d(1)
+        self.regressor = nn.Linear(input_dim, 1)
+        
+    def forward(self, x):
+        x = self.position_encoding(x)
+        x = self.encoder(x)
+        x = self.global_pool(x.transpose(1, 2)).squeeze(-1)
+        return self.regressor(x)
+
+# 位置编码模块
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=7):
+        super().__init__()
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-np.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe.unsqueeze(0))
+        
+    def forward(self, x):
+        return x + self.pe[:, :x.size(1), :]
+
+# 数据预处理函数
+def load_and_preprocess(data_path='./data/daily_citi_bike_trip_counts_and_weather.csv'):
+    raw_data = pd.read_csv(data_path, parse_dates=['date'], index_col='date')
+    
+    # 特征工程
     feature_cols = [
         'precipitation', 'snow_depth', 'snowfall', 'max_t', 'min_t',
         'average_wind_speed', 'dow', 'year', 'month', 'holiday',
@@ -45,153 +87,166 @@ def load_and_preprocess(data_path='./data/daily_citi_bike_trip_counts_and_weathe
     ]
     target_col = 'trips'
     
+    # 添加滑动窗口特征
+    # raw_data['7d_avg_trips'] = raw_data[target_col].rolling(7).mean().fillna(0)
+    # feature_cols.append('7d_avg_trips')
+    
     # 数据集划分
     train_size = int(len(raw_data) * 0.9)
     train_data = raw_data.iloc[:train_size]
     test_data = raw_data.iloc[train_size:]
     
-    # 特征标准化
+    # 标准化处理
     feature_scaler = RobustScaler().fit(train_data[feature_cols])
+    target_scaler = RobustScaler().fit(train_data[[target_col]])
+    
     train_data.loc[:, feature_cols] = feature_scaler.transform(train_data[feature_cols])
     test_data.loc[:, feature_cols] = feature_scaler.transform(test_data[feature_cols])
-    
-    # 目标值标准化
-    target_scaler = RobustScaler().fit(train_data[[target_col]])
     train_data[target_col] = target_scaler.transform(train_data[[target_col]])
     test_data[target_col] = target_scaler.transform(test_data[[target_col]])
     
     return train_data, test_data, feature_cols, target_col, target_scaler
 
-# 时间序列数据集生成
-def create_sequences(data, feature_cols, target_col, time_steps=7):
-    X, y = [], []
-    for i in range(len(data) - time_steps):
-        X.append(data[feature_cols].iloc[i:i+time_steps].values)
-        y.append(data[target_col].iloc[i+time_steps])
-    return np.array(X), np.array(y)
-
-# Transformer模型构建
-def build_transformer_model(input_shape, num_heads=4, ff_dim=256, dropout=0.1):
-    inputs = Input(shape=input_shape)
+# 训练函数
+def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, epochs, device, save_path):
+    best_loss = float('inf')
+    history = {'train_loss': [], 'val_loss': []}
     
-    # 位置编码层
-    positions = tf.range(start=0, limit=input_shape[0], delta=1)
-    position_embedding = tf.keras.layers.Embedding(
-        input_dim=input_shape[0], 
-        output_dim=input_shape[1]
-    )(positions)
-    x = inputs + position_embedding
-    
-    # Transformer编码块
-    for _ in range(2):
-        # 自注意力机制
-        attn_output = MultiHeadAttention(
-            num_heads=num_heads, key_dim=input_shape[1]//num_heads
-        )(x, x)
-        attn_output = Dropout(dropout)(attn_output)
-        x = LayerNormalization(epsilon=1e-6)(x + attn_output)
+    for epoch in range(epochs):
+        # 训练阶段
+        model.train()
+        train_loss = 0
+        for X_batch, y_batch in train_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            
+            optimizer.zero_grad()
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch.unsqueeze(1))
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            
+            train_loss += loss.item() * X_batch.size(0)
         
-        # 前馈网络
-        ffn = Dense(ff_dim, activation="gelu")(x)
-        ffn = Dense(input_shape[1])(ffn)
-        ffn = Dropout(dropout)(ffn)
-        x = LayerNormalization(epsilon=1e-6)(x + ffn)
+        # 验证阶段
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for X_val, y_val in val_loader:
+                X_val, y_val = X_val.to(device), y_val.to(device)
+                outputs = model(X_val)
+                val_loss += criterion(outputs, y_val.unsqueeze(1)).item() * X_val.size(0)
+        
+        # 记录损失
+        train_loss = train_loss / len(train_loader.dataset)
+        val_loss = val_loss / len(val_loader.dataset)
+        history['train_loss'].append(train_loss)
+        history['val_loss'].append(val_loss)
+        
+        # 保存最佳模型
+        if val_loss < best_loss:
+            best_loss = val_loss
+            torch.save(model.state_dict(), os.path.join(save_path, 'best_model.pth'))
+        
+        # 学习率调度
+        scheduler.step(val_loss)
+        
+        # 打印进度
+        if (epoch+1) % 10 == 0:
+            print(f'Epoch {epoch+1}/{epochs} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}')
     
-    # 输出层
-    x = GlobalAveragePooling1D()(x)
-    outputs = Dense(1)(x)
-    
-    model = Model(inputs, outputs)
-    return model
+    return history, best_loss
 
 # 主程序流程
 def main():
     # 数据准备
     train_data, test_data, feature_cols, target_col, target_scaler = load_and_preprocess()
     
-    # 生成序列数据
-    TIME_STEPS = 1  # 使用7天历史数据进行预测
-    X_train, y_train = create_sequences(train_data, feature_cols, target_col, TIME_STEPS)
-    X_test, y_test = create_sequences(test_data, feature_cols, target_col, TIME_STEPS)
+    # 创建数据集
+    TIME_STEPS = 1
+    train_dataset = BikeDataset(train_data, feature_cols, target_col, TIME_STEPS)
+    test_dataset = BikeDataset(test_data, feature_cols, target_col, TIME_STEPS)
+    
+    # 创建数据加载器
+    BATCH_SIZE = 128
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
     
     # 模型配置
-    model = build_transformer_model(
-        input_shape=(TIME_STEPS, len(feature_cols)),
-        num_heads=4,
+    model = BikeTransformer(
+        input_dim=len(feature_cols),
+        num_heads=7,
         ff_dim=256,
-        dropout=0.2
+        dropout=0.2,
+        num_layers=2
+    ).to(device)
+    
+    # 优化配置
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=15, verbose=True
     )
     
-    # 模型编译
-    optimizer = Adam(learning_rate=1e-4, clipnorm=1.0)
-    model.compile(optimizer=optimizer, loss='mse')
-    
-    # 回调函数
+    # 创建保存目录
     base_path = f"./model/{datetime.now():%Y-%m-%d_%H-%M-%S}"
     os.makedirs(base_path, exist_ok=True)
     
-    checkpoint = ModelCheckpoint(
-        filepath=os.path.join(base_path, 'best_model.keras'),
-        monitor='val_loss',
-        save_best_only=True,
-        verbose=1
-    )
-    
-    lr_scheduler = ReduceLROnPlateau(
-        monitor='val_loss',
-        factor=0.5,
-        patience=15,
-        min_lr=1e-6,
-        verbose=1
-    )
-    
     # 模型训练
-    history = model.fit(
-        X_train, y_train,
-        validation_data=(X_test, y_test),
-        epochs=12000,
-        batch_size=128,
-        callbacks=[
-          # checkpoint, 
-          lr_scheduler
-          ],
-        verbose=1
+    history, best_loss = train_model(
+        model=model,
+        train_loader=train_loader,
+        val_loader=test_loader,
+        criterion=criterion,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        epochs=2000,
+        device=device,
+        save_path=base_path
     )
+    
+    print(f'最小损失: {best_loss:.6f}')
     
     # 加载最佳模型
-    # best_model = load_model(os.path.join(base_path, 'best_model.keras'))
+    model.load_state_dict(torch.load(os.path.join(base_path, 'best_model.pth')))
     
-    # 预测与评估
-    # y_pred = best_model.predict(X_test)
-    y_pred = model.predict(X_test)
-    y_pred_inv = target_scaler.inverse_transform(y_pred)
-    y_test_inv = target_scaler.inverse_transform(y_test.reshape(-1, 1))
+    # 模型评估
+    model.eval()
+    y_pred, y_true = [], []
+    with torch.no_grad():
+        for X_test, y_test in test_loader:
+            X_test = X_test.to(device)
+            outputs = model(X_test).cpu().numpy()
+            y_pred.extend(outputs.squeeze())
+            y_true.extend(y_test.numpy())
     
+    # 反标准化
+    y_pred_inv = target_scaler.inverse_transform(np.array(y_pred).reshape(-1, 1))
+    y_test_inv = target_scaler.inverse_transform(np.array(y_true).reshape(-1, 1))
+    
+    # 计算指标
     rmse = np.sqrt(mean_squared_error(y_test_inv, y_pred_inv))
-    print(f'测试集RMSE: {rmse:.2f}')
+    print(f'Test RMSE: {rmse:.2f}')
     
-    min_val_loss = round(min(history.history['val_loss']),6)
-    
-    # 绘制训练损失和验证损失的变化曲线
+    # 可视化损失曲线
     plt.figure(figsize=(6,4))
-    plt.plot(history.history['loss'],label='train loss')
-    plt.plot(history.history['val_loss'],label='vall loss')
+    plt.plot(history['train_loss'],label='train loss')
+    plt.plot(history['val_loss'],label='vall loss')
     plt.legend()
-    plt.savefig(base_path +'/loss ' + str(min_val_loss) + '.png')
+    plt.savefig(base_path +'/loss ' + str(best_loss) + '.png')
     plt.show()
     
     # 可视化结果
     plt.figure(figsize=(12, 4))
-    plt.plot(y_test_inv, label='true', alpha=0.7)
-    plt.plot(y_pred_inv, label='pred', alpha=0.7)
-    plt.title(f'Transformer预测效果 (RMSE={rmse:.2f})')
+    plt.plot(y_test_inv, label='True', marker='.', alpha=0.7)
+    plt.plot(y_pred_inv, label='Pred', marker='.', alpha=0.7)
+    plt.title(f'Transformer Prediction (RMSE={rmse:.2f})')
     plt.legend()
     plt.savefig(os.path.join(base_path, 'prediction_comparison.png'))
     plt.show()
     
     # 保存完整模型
-    # best_model.save(os.path.join(base_path, 'final_transformer_model.keras'))
-    model.save(os.path.join(base_path, 'final_transformer_model.keras'))
+    torch.save(model, os.path.join(base_path, 'full_model.pth'))
 
 if __name__ == "__main__":
     main()
