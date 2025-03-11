@@ -178,7 +178,7 @@ for i in range(repeat):
     model.save(base_path + str(i) +'/final_bike_usage_model.keras')
 
     # 记录数据指标
-    new_df = pd.DataFrame([[start_time,end_time,data_name,i,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm,min_val_loss]],columns=['start_time','end_time','data_name','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
+    new_df = pd.DataFrame([[start_time,end_time,data_name,'tensorflow',i,train_percentage,time_steps,l1,d1,l2,d2,epochs,batch_size,rmse_lstm,min_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
     save_data = train_df._append(new_df)
     save_data.to_excel('train.xlsx',index=False)
     print('数据记录完成')

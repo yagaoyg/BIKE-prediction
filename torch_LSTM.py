@@ -33,22 +33,22 @@ train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:len(data)]
 
 # 选取特征
 cols = [
-    'precipitation',
-    'snow_depth',
-    'snowfall',
-    'max_t',
-    'min_t',
-    'average_wind_speed',
-    'dow',
-    'year',
-    'month',
-    'holiday',
-    # 'stations_in_service',
-    'weekday',
-    'weekday_non_holiday',
-    'dt',
-    'season'
-    ]
+  'precipitation',
+  'snow_depth',
+  'snowfall',
+  'max_t',
+  'min_t',
+  'average_wind_speed',
+  'dow',
+  'year',
+  'month',
+  'holiday',
+  # 'stations_in_service',
+  'weekday',
+  'weekday_non_holiday',
+  'dt',
+  'season'
+  ]
 
 # 特征量标准化
 transformer = RobustScaler()
@@ -66,12 +66,12 @@ test_data.loc[:, 'trips'] = trips_transformer.transform(test_data[['trips']])
 
 # 将输入的时序数据 x 和标签 y 转换成适合 LSTM 模型训练的数据格式
 def create_dataset(x, y, time_steps=1):
-    xs, ys = [], []
-    for i in range(len(x) - time_steps):
-        v = x.iloc[i:(i + time_steps)].values
-        xs.append(v)
-        ys.append(y.iloc[i + time_steps])
-    return np.array(xs), np.array(ys)
+  xs, ys = [], []
+  for i in range(len(x) - time_steps):
+      v = x.iloc[i:(i + time_steps)].values
+      xs.append(v)
+      ys.append(y.iloc[i + time_steps])
+  return np.array(xs), np.array(ys)
 
 time_steps = 1
 
@@ -91,7 +91,7 @@ base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 temp_path = './model/temp/temp_bike_pred_model.pth'
 
 # 引入数据指标记录表
-# train_df = pd.read_excel('train.xlsx')
+train_df = pd.read_excel('train.xlsx')
 
 # 记录开始时间
 start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
@@ -102,24 +102,23 @@ model_save_path = base_path + '/bike_pred_model.pth'
 # 创建保存模型的文件夹（如果没有的话）
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 
-
 # 定义 LSTM 模型
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
-        super(LSTMModel, self).__init__()
-        self.lstm1 = nn.LSTM(input_size, hidden_size1, batch_first=True)
-        self.dropout1 = nn.Dropout(dropout1)
-        self.lstm2 = nn.LSTM(hidden_size1, hidden_size2, batch_first=True)
-        self.dropout2 = nn.Dropout(dropout2)
-        self.fc = nn.Linear(hidden_size2, 1)
+  def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
+    super(LSTMModel, self).__init__()
+    self.lstm1 = nn.LSTM(input_size, hidden_size1, batch_first=True)
+    self.dropout1 = nn.Dropout(dropout1)
+    self.lstm2 = nn.LSTM(hidden_size1, hidden_size2, batch_first=True)
+    self.dropout2 = nn.Dropout(dropout2)
+    self.fc = nn.Linear(hidden_size2, 1)
 
-    def forward(self, x):
-        out, _ = self.lstm1(x)
-        out = self.dropout1(out)
-        out, _ = self.lstm2(out)
-        out = self.dropout2(out)
-        out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
-        return out
+  def forward(self, x):
+    out, _ = self.lstm1(x)
+    out = self.dropout1(out)
+    out, _ = self.lstm2(out)
+    out = self.dropout2(out)
+    out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
+    return out
 
 
 # 设置超参数
@@ -143,34 +142,46 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 train_losses, val_losses = [], []
 best_val_loss = float('inf')
 
+# patience = 100
+# trigger_times = 0
+# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=20, verbose=True)
+
 for epoch in range(epochs):
-    model.train()
-    optimizer.zero_grad()
+  model.train()
+  optimizer.zero_grad()
 
-    # 前向传播
-    outputs = model(x_train)
-    loss = criterion(outputs.squeeze(), y_train)
+  # 前向传播
+  outputs = model(x_train)
+  loss = criterion(outputs.squeeze(), y_train)
 
-    # 反向传播和优化
-    loss.backward()
-    optimizer.step()
+  # 反向传播和优化
+  loss.backward()
+  optimizer.step()
 
-    # 验证集上的损失
-    model.eval()
-    with torch.no_grad():
-        val_outputs = model(x_test)
-        val_loss = criterion(val_outputs.squeeze(), y_test)
+  # 验证集上的损失
+  model.eval()
+  with torch.no_grad():
+    val_outputs = model(x_test)
+    val_loss = criterion(val_outputs.squeeze(), y_test)
 
-    train_losses.append(loss.item())
-    val_losses.append(val_loss.item())
+  train_losses.append(loss.item())
+  val_losses.append(val_loss.item())
 
-    # 保存最佳模型
-    if val_loss.item() < best_val_loss:
-        best_val_loss = val_loss.item()
-        torch.save(model.state_dict(), temp_path)
+  # 保存最佳模型
+  if val_loss.item() < best_val_loss:
+    best_val_loss = val_loss.item()
+    torch.save(model.state_dict(), temp_path)
+    trigger_times = 0
+  # else:
+  #   trigger_times += 1
+  #   if trigger_times >= patience:
+  #     print(f"Early stopping at epoch {epoch+1}")
+  #     break
+    
+  # scheduler.step(val_loss)
 
-    if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+  if (epoch + 1) % 10 == 0:
+    print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
 # 加载最佳模型
 model.load_state_dict(torch.load(temp_path))
@@ -190,7 +201,7 @@ plt.show()
 # 在测试集上进行预测
 model.eval()
 with torch.no_grad():
-    y_pred = model(x_test).cpu().numpy()
+  y_pred = model(x_test).cpu().numpy()
 
 # 反标准化预测值和真实值
 y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1, -1))
@@ -208,3 +219,9 @@ plt.title('LSTM Prediction')
 plt.legend()
 plt.savefig(base_path + str(rmse_lstm) + '_LSTM.png')
 plt.show()
+
+# 记录数据指标
+new_df = pd.DataFrame([[start_time,end_time,data_name,'tensorflow',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
+save_data = train_df._append(new_df)
+save_data.to_excel('train.xlsx',index=False)
+print('数据记录完成')
