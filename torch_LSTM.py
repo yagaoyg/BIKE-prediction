@@ -1,0 +1,210 @@
+# 导入必要的库
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import torch
+import torch.nn as nn
+from datetime import datetime
+from sklearn.preprocessing import RobustScaler
+from torch.utils.data import DataLoader, Dataset
+from sklearn.metrics import mean_squared_error
+
+sns.set_style("darkgrid")
+
+# 检查是否有可用的 GPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+
+# 数据集名称
+data_name = 'daily_citi_bike_trip_counts_and_weather'
+
+# 引入数据集
+data = pd.read_csv('./data/' + data_name + '.csv',
+                   parse_dates=['date'],
+                   index_col=['date'])
+
+# 划分训练集和测试集
+train_percentage = 0.9
+train_size = int(len(data) * train_percentage)
+test_size = len(data) - train_size
+train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:len(data)]
+
+# 选取特征
+cols = [
+    'precipitation',
+    'snow_depth',
+    'snowfall',
+    'max_t',
+    'min_t',
+    'average_wind_speed',
+    'dow',
+    'year',
+    'month',
+    'holiday',
+    # 'stations_in_service',
+    'weekday',
+    'weekday_non_holiday',
+    'dt',
+    'season'
+    ]
+
+# 特征量标准化
+transformer = RobustScaler()
+transformer = transformer.fit(train_data[cols].to_numpy())
+
+train_data.loc[:, cols] = transformer.transform(train_data[cols].to_numpy())
+test_data.loc[:, cols] = transformer.transform(test_data[cols].to_numpy())
+
+# 目标量标准化
+trips_transformer = RobustScaler()
+trips_transformer = trips_transformer.fit(train_data[['trips']])
+
+train_data.loc[:, 'trips'] = trips_transformer.transform(train_data[['trips']])
+test_data.loc[:, 'trips'] = trips_transformer.transform(test_data[['trips']])
+
+# 将输入的时序数据 x 和标签 y 转换成适合 LSTM 模型训练的数据格式
+def create_dataset(x, y, time_steps=1):
+    xs, ys = [], []
+    for i in range(len(x) - time_steps):
+        v = x.iloc[i:(i + time_steps)].values
+        xs.append(v)
+        ys.append(y.iloc[i + time_steps])
+    return np.array(xs), np.array(ys)
+
+time_steps = 1
+
+x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
+x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
+
+# 转换为 PyTorch Tensor
+x_train = torch.tensor(x_train, dtype=torch.float32).to(device)
+y_train = torch.tensor(y_train, dtype=torch.float32).to(device)
+x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
+y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
+
+# 基于当前时间创建路径 作为基础路径使用
+base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
+
+# 临时路径 用于保存训练过程中回调函数保存的模型
+temp_path = './model/temp/temp_bike_pred_model.pth'
+
+# 引入数据指标记录表
+# train_df = pd.read_excel('train.xlsx')
+
+# 记录开始时间
+start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
+
+# 设置保存模型的路径
+model_save_path = base_path + '/bike_pred_model.pth'
+
+# 创建保存模型的文件夹（如果没有的话）
+os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+
+
+# 定义 LSTM 模型
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
+        super(LSTMModel, self).__init__()
+        self.lstm1 = nn.LSTM(input_size, hidden_size1, batch_first=True)
+        self.dropout1 = nn.Dropout(dropout1)
+        self.lstm2 = nn.LSTM(hidden_size1, hidden_size2, batch_first=True)
+        self.dropout2 = nn.Dropout(dropout2)
+        self.fc = nn.Linear(hidden_size2, 1)
+
+    def forward(self, x):
+        out, _ = self.lstm1(x)
+        out = self.dropout1(out)
+        out, _ = self.lstm2(out)
+        out = self.dropout2(out)
+        out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
+        return out
+
+
+# 设置超参数
+input_size = x_train.shape[2]
+hidden_size1 = 144
+hidden_size2 = 96
+dropout1 = 0.4
+dropout2 = 0.3
+epochs = 2000
+batch_size = 128
+learning_rate = 0.001
+
+# 创建模型并移动到设备
+model = LSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
+
+# 定义损失函数和优化器
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+# 训练模型
+train_losses, val_losses = [], []
+best_val_loss = float('inf')
+
+for epoch in range(epochs):
+    model.train()
+    optimizer.zero_grad()
+
+    # 前向传播
+    outputs = model(x_train)
+    loss = criterion(outputs.squeeze(), y_train)
+
+    # 反向传播和优化
+    loss.backward()
+    optimizer.step()
+
+    # 验证集上的损失
+    model.eval()
+    with torch.no_grad():
+        val_outputs = model(x_test)
+        val_loss = criterion(val_outputs.squeeze(), y_test)
+
+    train_losses.append(loss.item())
+    val_losses.append(val_loss.item())
+
+    # 保存最佳模型
+    if val_loss.item() < best_val_loss:
+        best_val_loss = val_loss.item()
+        torch.save(model.state_dict(), temp_path)
+
+    if (epoch + 1) % 10 == 0:
+        print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+
+# 加载最佳模型
+model.load_state_dict(torch.load(temp_path))
+
+# 记录结束时间
+end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
+
+print(f"验证损失的最小值: {best_val_loss:.6f}")
+# 绘制训练损失和验证损失的变化曲线
+plt.figure(figsize=(6,4))
+plt.plot(train_losses,label='train loss')
+plt.plot(val_losses,label='vall loss')
+plt.legend()
+plt.savefig(base_path +'/loss ' + str(best_val_loss) + '.png')
+plt.show()
+
+# 在测试集上进行预测
+model.eval()
+with torch.no_grad():
+    y_pred = model(x_test).cpu().numpy()
+
+# 反标准化预测值和真实值
+y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1, -1))
+y_test_inv = trips_transformer.inverse_transform(y_test.cpu().numpy().reshape(1, -1))
+
+# 计算均方根误差
+rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv.flatten(), y_pred_inv.flatten())), 2)
+print(f"RMSE: {rmse_lstm}")
+
+# 绘制预测结果
+plt.figure(figsize=(12, 4))
+plt.plot(y_test_inv.flatten(), marker='.', label="true")
+plt.plot(y_pred_inv.flatten(), marker='.', label="pred")
+plt.title('LSTM Prediction')
+plt.legend()
+plt.savefig(base_path + str(rmse_lstm) + '_LSTM.png')
+plt.show()

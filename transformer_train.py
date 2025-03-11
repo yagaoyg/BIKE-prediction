@@ -40,9 +40,10 @@ class BikeDataset(Dataset):
 
 # Transformer模型类
 class BikeTransformer(nn.Module):
-    def __init__(self, input_dim, num_heads=2, ff_dim=512, dropout=0.3, num_layers=3):
+    def __init__(self, input_dim, num_heads=2, ff_dim=512, dropout=0.3, num_layers=3,time_steps=7):
         super().__init__()
         self.input_proj = nn.Linear(input_dim, 32)  # 维度提升
+        self.pos_encoder = PositionalEncoding(d_model=32, max_len=time_steps)  # 新增
         
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=32,
@@ -63,6 +64,7 @@ class BikeTransformer(nn.Module):
 
     def forward(self, x):
         x = self.input_proj(x)  # [batch, seq_len, 32]
+        x = self.pos_encoder(x)  # 添加位置编码
         x = self.encoder(x)
         x = x.mean(dim=1)  # 时序平均池化
         return self.decoder(x)
@@ -89,6 +91,7 @@ def load_and_preprocess(data_path='./data/daily_citi_bike_trip_counts_and_weathe
     feature_cols = [
         'precipitation', 'snow_depth', 'snowfall', 'max_t', 'min_t',
         'average_wind_speed', 'dow', 'year', 'month', 'holiday',
+        # 'stations_in_service',
         'weekday', 'weekday_non_holiday', 'dt', 'season'
     ]
     target_col = 'trips'
@@ -117,11 +120,13 @@ def load_and_preprocess(data_path='./data/daily_citi_bike_trip_counts_and_weathe
 def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, epochs, device, save_path):
     best_loss = float('inf')
     history = {'train_loss': [], 'val_loss': []}
+    # patience_counter = 0
     
     for epoch in range(epochs):
         # 训练阶段
         model.train()
         train_loss = 0
+        
         for X_batch, y_batch in train_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
             
@@ -153,6 +158,15 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
         if val_loss < best_loss:
             best_loss = val_loss
             torch.save(model.state_dict(), os.path.join(save_path, 'best_model.pth'))
+            
+        # 添加早停机制
+        # if val_loss < best_loss:
+        #     patience_counter = 0
+        # else:
+        #     patience_counter += 1
+        #     if patience_counter >= 30:
+        #         print("Early stopping triggered")
+        #         break
         
         # 学习率调度
         scheduler.step(val_loss)
@@ -184,7 +198,8 @@ model = BikeTransformer(
     num_heads=4,
     ff_dim=256,
     dropout=0.2,
-    num_layers=2
+    num_layers=2,
+    time_steps=TIME_STEPS
 ).to(device)
 
 # 优化配置
@@ -195,7 +210,7 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(
 )
 
 # 创建保存目录
-base_path = f"./model/{datetime.now():%Y-%m-%d_%H-%M-%S}"
+base_path = f"./model/{datetime.now():%Y-%m-%d %H-%M-%S}"
 os.makedirs(base_path, exist_ok=True)
 
 # 模型训练
