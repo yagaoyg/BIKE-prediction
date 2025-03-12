@@ -3,3 +3,4 @@
 ~$train.xlsx
 model
 *.ipynb
+.VSCodeCounter

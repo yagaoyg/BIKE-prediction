@@ -102,47 +102,55 @@ model_save_path = base_path + '/bike_pred_model.pth'
 # 创建保存模型的文件夹（如果没有的话）
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 
-# 定义 LSTM 模型
-class LSTMModel(nn.Module):
+# 自定义LSTM模型
+# 双向LSTM + CNN
+class MYLSTMModel(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
-    super(LSTMModel, self).__init__()
-    self.lstm1 = nn.LSTM(input_size, hidden_size1, batch_first=True)
+    super(MYLSTMModel, self).__init__()
+    self.conv1 = nn.Conv1d(input_size, 64, kernel_size=3, padding=1)
+    self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
+    self.lstm1 = nn.LSTM(128, hidden_size1, batch_first=True, bidirectional=True)
     self.dropout1 = nn.Dropout(dropout1)
-    self.lstm2 = nn.LSTM(hidden_size1, hidden_size2, batch_first=True)
+    self.lstm2 = nn.LSTM(hidden_size1 * 2, hidden_size2, batch_first=True, bidirectional=True)
     self.dropout2 = nn.Dropout(dropout2)
-    self.fc = nn.Linear(hidden_size2, 1)
-
+    self.fc = nn.Linear(hidden_size2 * 2, 1)
   def forward(self, x):
+    x = x.permute(0, 2, 1)  # (batch_size, input_size, time_steps)
+    x = torch.relu(self.conv1(x))
+    x = torch.relu(self.conv2(x))
+    x = x.permute(0, 2, 1)  # (batch_size, time_steps, 128)
+    
     out, _ = self.lstm1(x)
     out = self.dropout1(out)
     out, _ = self.lstm2(out)
     out = self.dropout2(out)
+    
     out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
     return out
-
 
 # 设置超参数
 input_size = x_train.shape[2]
 hidden_size1 = 144
-hidden_size2 = 96
+hidden_size2 = 80
 dropout1 = 0.4
 dropout2 = 0.3
-epochs = 2000
+epochs = 4000
 batch_size = 128
 learning_rate = 0.001
 
-# 创建模型并移动到设备
-model = LSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
+# 创建自定义的LSTM模型
+model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
 
 # 定义损失函数和优化器
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
 
 # 训练模型
 train_losses, val_losses = [], []
 best_val_loss = float('inf')
+best_epoch = 0
 
-# patience = 100
+# patience = 50
 # trigger_times = 0
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=20, verbose=True)
 
@@ -170,13 +178,9 @@ for epoch in range(epochs):
   # 保存最佳模型
   if val_loss.item() < best_val_loss:
     best_val_loss = val_loss.item()
+    best_epoch = epoch + 1
     torch.save(model.state_dict(), temp_path)
     trigger_times = 0
-  # else:
-  #   trigger_times += 1
-  #   if trigger_times >= patience:
-  #     print(f"Early stopping at epoch {epoch+1}")
-  #     break
     
   # scheduler.step(val_loss)
 
@@ -189,7 +193,7 @@ model.load_state_dict(torch.load(temp_path))
 # 记录结束时间
 end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
-print(f"验证损失的最小值: {best_val_loss:.6f}")
+print(f"验证损失的最小值: {best_val_loss:.6f} 出现在：{best_epoch}")
 # 绘制训练损失和验证损失的变化曲线
 plt.figure(figsize=(6,4))
 plt.plot(train_losses,label='train loss')
@@ -208,20 +212,20 @@ y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1, -1))
 y_test_inv = trips_transformer.inverse_transform(y_test.cpu().numpy().reshape(1, -1))
 
 # 计算均方根误差
-rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv.flatten(), y_pred_inv.flatten())), 2)
+rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv.flatten(), y_pred_inv.flatten())), 6)
 print(f"RMSE: {rmse_lstm}")
 
 # 绘制预测结果
 plt.figure(figsize=(12, 4))
 plt.plot(y_test_inv.flatten(), marker='.', label="true")
 plt.plot(y_pred_inv.flatten(), marker='.', label="pred")
-plt.title('LSTM Prediction')
+plt.title(f'LSTM Prediction RMSE: {rmse_lstm}')
 plt.legend()
 plt.savefig(base_path + str(rmse_lstm) + '_LSTM.png')
 plt.show()
 
 # 记录数据指标
-new_df = pd.DataFrame([[start_time,end_time,data_name,'tensorflow',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
+new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
 save_data = train_df._append(new_df)
 save_data.to_excel('train.xlsx',index=False)
 print('数据记录完成')
