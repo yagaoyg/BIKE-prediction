@@ -131,7 +131,7 @@ class MYLSTMModel(nn.Module):
 # 设置超参数
 input_size = x_train.shape[2]
 hidden_size1 = 144
-hidden_size2 = 80
+hidden_size2 = 96
 dropout1 = 0.4
 dropout2 = 0.3
 epochs = 4000

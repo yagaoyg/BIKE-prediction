@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from sklearn.metrics import mutual_info_score
-from statsmodels.tsa.seasonal import seasonal_decompose
+# from statsmodels.tsa.seasonal import seasonal_decompose
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 
@@ -88,11 +88,11 @@ plt.show()
 
 
 # 分析所有特征与骑行次数的关系
-# corr = data.corr()
-# plt.figure(figsize=(13, 13))
-# sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-# plt.title("变量间相关系数热力图")
-# plt.show()
+corr = data.corr()
+plt.figure(figsize=(13, 13))
+sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+plt.title("变量间相关系数热力图")
+plt.show()
 
 # 按时间显示运营中的站点数量
 # plt.figure(figsize=(15,5))
