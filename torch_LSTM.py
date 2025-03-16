@@ -42,7 +42,6 @@ cols = [
   'dow',
   'year',
   'month',
-  'holiday',
   # 'stations_in_service',
   'weekday',
   'weekday_non_holiday',
@@ -93,14 +92,14 @@ temp_path = './model/temp/temp_bike_pred_model.pth'
 # 引入数据指标记录表
 train_df = pd.read_excel('train.xlsx')
 
-# 记录开始时间
-start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
-
 # 设置保存模型的路径
 model_save_path = base_path + '/bike_pred_model.pth'
 
 # 创建保存模型的文件夹（如果没有的话）
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+
+# 记录开始时间
+start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
 # 自定义LSTM模型
 # 双向LSTM + CNN
@@ -116,10 +115,10 @@ class MYLSTMModel(nn.Module):
     self.fc = nn.Linear(hidden_size2 * 2, 1)
     
   def forward(self, x):
-    x = x.permute(0, 2, 1)  # (batch_size, input_size, time_steps)
+    x = x.permute(0, 2, 1)
     x = torch.relu(self.conv1(x))
     x = torch.relu(self.conv2(x))
-    x = x.permute(0, 2, 1)  # (batch_size, time_steps, 128)
+    x = x.permute(0, 2, 1)
     
     out, _ = self.lstm1(x)
     out = self.dropout1(out)
@@ -182,8 +181,6 @@ for epoch in range(epochs):
     best_epoch = epoch + 1
     torch.save(model.state_dict(), temp_path)
     trigger_times = 0
-    
-  # scheduler.step(val_loss)
 
   if (epoch + 1) % 10 == 0:
     print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
@@ -199,6 +196,7 @@ print(f"验证损失的最小值: {best_val_loss:.6f} 出现在：{best_epoch}")
 plt.figure(figsize=(6,4))
 plt.plot(train_losses,label='train loss')
 plt.plot(val_losses,label='vall loss')
+plt.title(f'Loss Curve best val_loss:{best_val_loss:.6f}')
 plt.legend()
 plt.savefig(base_path +'/loss ' + str(best_val_loss) + '.png')
 plt.show()

@@ -41,10 +41,10 @@ sns.lineplot(data=data, x=data.index, y=data.trips)
 plt.show()
 
 # 以月份为x轴，骑行次数为y轴，绘制折线图
-data_month = data.resample('M').sum()
-plt.figure(figsize=(15,5))
-sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips)
-plt.show()
+# data_month = data.resample('M').sum()
+# plt.figure(figsize=(15,5))
+# sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips)
+# plt.show()
 
 # 降雨量
 # plt.figure(figsize=(15,5))
@@ -88,11 +88,11 @@ plt.show()
 
 
 # 分析所有特征与骑行次数的关系
-corr = data.corr()
-plt.figure(figsize=(13, 13))
-sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-plt.title("变量间相关系数热力图")
-plt.show()
+# corr = data.corr()
+# plt.figure(figsize=(13, 13))
+# sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+# plt.title("变量间相关系数热力图")
+# plt.show()
 
 # 按时间显示运营中的站点数量
 # plt.figure(figsize=(15,5))
@@ -100,16 +100,16 @@ plt.show()
 # plt.show()
 
 # 按季节显示骑行次数
-# seasonal_data = data.groupby('season').sum()
+# seasonal_data = data.groupby('season').mean()
 # plt.figure(figsize=(8,4))
 # sns.barplot(data=seasonal_data, x='season', y=seasonal_data.trips,palette='viridis')
 # plt.show()
 
 # 按星期显示骑行次数
-# dow_data = data.groupby('dow').sum()
-# plt.figure(figsize=(10,4))
-# sns.barplot(data=dow_data, x='dow', y=dow_data.trips,palette='viridis')
-# plt.show()
+dow_data = data.groupby('dow').mean()
+plt.figure(figsize=(10,4))
+sns.barplot(data=dow_data, x='dow', y=dow_data.trips,palette='viridis')
+plt.show()
 
 # 是否假期与骑行次数的相关性分析
 # print("描述统计:")
@@ -117,36 +117,38 @@ plt.show()
 
 # 年份、月中日期与骑行次数的关系
 # ====== 关联性强弱判断 ======
-# def check_association(feature, target):
-#     """快速评估特征与目标变量的关联性"""
-#     # 数值型关联
-#     if feature.nunique() > 10:
-#         corr = stats.pearsonr(feature, target)
-#         print(f"皮尔逊相关系数: {corr[0]:.2f} (p={corr[1]:.3f})")
-#         return abs(corr[0])
+def check_association(feature, target):
+    """快速评估特征与目标变量的关联性"""
+    # 数值型关联
+    # if feature.nunique() > 10:
+    #     corr = stats.pearsonr(feature, target)
+    #     print(f"皮尔逊相关系数: {corr[0]:.2f} (p={corr[1]:.3f})")
+    #     return abs(corr[0])
     
-#     # 类别型关联
-#     else:
-#       groups = [target[feature == val] for val in feature.unique()]
-#       h_stat, p_val = stats.kruskal(*groups)
-#       print(f"Kruskal-Wallis检验: H={h_stat:.1f} (p={p_val:.3f})")
-#       return h_stat / 100  # 标准化效应量
+    # 类别型关联
+    # else:
+    groups = [target[feature == val] for val in feature.unique()]
+    h_stat, p_val = stats.kruskal(*groups)
+    print(f"Kruskal-Wallis检验: H={h_stat:.1f} (p={p_val:.3f})")
+    return h_stat / 800  # 标准化效应量
+
+print('\n')
 
 # # 评估年份关联性
-# print("年份分析:")
-# year_strength = check_association(data['year'], data['trips'])
+print("年份分析:")
+year_strength = check_association(data['year'], data['trips'])
 
 # # 评估日期关联性
-# print("\n每月某日分析:")
-# day_strength = check_association(data['day'], data['trips'])
+print("\n月中日期分析:")
+day_strength = check_association(data['day'], data['trips'])
 
 # # 评估星期关联性
-# print("\n星期分析:")
-# weekday_strength = check_association(data['weekday'], data['trips'])
+print("\n星期分析:")
+weekday_strength = check_association(data['weekday'], data['trips'])
 
 # # 评估假期关联性
-# print("\n假期分析:")
-# holiday_strength = check_association(data['holiday'], data['trips'])
+print("\n假期分析:")
+holiday_strength = check_association(data['holiday'], data['trips'])
 
 # # ====== 可视化验证 ======
 # plt.figure(figsize=(12,5))
@@ -172,14 +174,14 @@ plt.show()
 # plt.show()
 
 # # ====== 决策建议 ======
-# thresholds = {
-#     '弱关联': 0.1,
-#     '极弱关联': 0.05
-# }
+thresholds = {
+    '弱关联': 0.1,
+    '极弱关联': 0.05
+}
 
-# print(f"\n决策建议:")
-# print(f"年份关联强度: {year_strength:.2f}（{'可用' if year_strength > thresholds['极弱关联'] else '建议舍弃'}）")
-# print(f"日期关联强度: {day_strength:.2f}（{'可用' if day_strength > thresholds['极弱关联'] else '建议舍弃'}）")
-# print(f"星期关联强度: {weekday_strength:.2f}（{'可用' if weekday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
-# print(f"假期关联强度: {holiday_strength:.2f}（{'可用' if holiday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+print(f"\n决策建议:")
+print(f"年份关联强度: {year_strength:.2f}（{'可用' if year_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+print(f"日期关联强度: {day_strength:.2f}（{'可用' if day_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+print(f"星期关联强度: {weekday_strength:.2f}（{'可用' if weekday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+print(f"假期关联强度: {holiday_strength:.2f}（{'可用' if holiday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
 
