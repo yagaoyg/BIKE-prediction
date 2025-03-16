@@ -114,6 +114,7 @@ class MYLSTMModel(nn.Module):
     self.lstm2 = nn.LSTM(hidden_size1 * 2, hidden_size2, batch_first=True, bidirectional=True)
     self.dropout2 = nn.Dropout(dropout2)
     self.fc = nn.Linear(hidden_size2 * 2, 1)
+    
   def forward(self, x):
     x = x.permute(0, 2, 1)  # (batch_size, input_size, time_steps)
     x = torch.relu(self.conv1(x))
@@ -223,6 +224,8 @@ plt.title(f'LSTM Prediction RMSE: {rmse_lstm}')
 plt.legend()
 plt.savefig(base_path + str(rmse_lstm) + '_LSTM.png')
 plt.show()
+
+torch.save(model.state_dict(), base_path + 'bike_pred_model.pth')
 
 # 记录数据指标
 new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
