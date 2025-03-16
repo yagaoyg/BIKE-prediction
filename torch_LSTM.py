@@ -26,7 +26,7 @@ data = pd.read_csv('./data/' + data_name + '.csv',
                    index_col=['date'])
 
 # 划分训练集和测试集
-train_percentage = 0.9
+train_percentage = 0.8
 train_size = int(len(data) * train_percentage)
 test_size = len(data) - train_size
 train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:len(data)]
@@ -42,7 +42,7 @@ cols = [
   'dow',
   'year',
   'month',
-  # 'stations_in_service',
+  'stations_in_service',
   'weekday',
   'weekday_non_holiday',
   'dt',
@@ -150,8 +150,6 @@ train_losses, val_losses = [], []
 best_val_loss = float('inf')
 best_epoch = 0
 
-# patience = 50
-# trigger_times = 0
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=20, verbose=True)
 
 for epoch in range(epochs):
@@ -179,14 +177,13 @@ for epoch in range(epochs):
   if val_loss.item() < best_val_loss:
     best_val_loss = val_loss.item()
     best_epoch = epoch + 1
-    torch.save(model.state_dict(), temp_path)
-    trigger_times = 0
+    # torch.save(model.state_dict(), temp_path)
 
   if (epoch + 1) % 10 == 0:
     print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
 # 加载最佳模型
-model.load_state_dict(torch.load(temp_path))
+# model.load_state_dict(torch.load(temp_path))
 
 # 记录结束时间
 end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())

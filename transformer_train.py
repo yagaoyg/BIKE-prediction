@@ -169,7 +169,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
         #         break
         
         # 学习率调度
-        scheduler.step(val_loss)
+        # scheduler.step(val_loss)
         
         # 打印进度
         if (epoch+1) % 10 == 0:
