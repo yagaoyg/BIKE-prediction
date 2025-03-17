@@ -42,7 +42,7 @@ cols = [
   'dow',
   'year',
   'month',
-  'stations_in_service',
+  # 'stations_in_service',
   'weekday',
   'weekday_non_holiday',
   'dt',
@@ -130,8 +130,8 @@ class MYLSTMModel(nn.Module):
 
 # 设置超参数
 input_size = x_train.shape[2]
-hidden_size1 = 144
-hidden_size2 = 96
+hidden_size1 = 128
+hidden_size2 = 80
 dropout1 = 0.4
 dropout2 = 0.3
 epochs = 4000
@@ -177,13 +177,13 @@ for epoch in range(epochs):
   if val_loss.item() < best_val_loss:
     best_val_loss = val_loss.item()
     best_epoch = epoch + 1
-    # torch.save(model.state_dict(), temp_path)
+    torch.save(model.state_dict(), temp_path)
 
   if (epoch + 1) % 10 == 0:
     print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
 # 加载最佳模型
-# model.load_state_dict(torch.load(temp_path))
+model.load_state_dict(torch.load(temp_path))
 
 # 记录结束时间
 end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
