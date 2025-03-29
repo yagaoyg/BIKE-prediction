@@ -196,9 +196,9 @@ test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
 model = BikeTransformer(
     input_dim=len(feature_cols),
     num_heads=4,
-    ff_dim=256,
+    ff_dim=512,
     dropout=0.2,
-    num_layers=2,
+    num_layers=4,
     time_steps=TIME_STEPS
 ).to(device)
 
@@ -221,7 +221,7 @@ history, best_loss = train_model(
     criterion=criterion,
     optimizer=optimizer,
     scheduler=scheduler,
-    epochs=2000,
+    epochs=6000,
     device=device,
     save_path=base_path
 )
