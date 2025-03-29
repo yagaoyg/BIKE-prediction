@@ -198,8 +198,9 @@ def main():
     # 特征选择
     feature_cols = ['precipitation', 'snow_depth', 'snowfall', 'max_t', 'min_t',
                    'average_wind_speed', 'month_sin', 'month_cos', 'day_sin', 
-                   'day_cos', 'dow_sin', 'dow_cos', 'trips_7d_mean', 'trips_7d_std']
-    
+                   'day_cos', 'dow_sin', 'dow_cos', 'trips_7d_mean', 'trips_7d_std',
+                   'weekday','weekday_non_holiday','dt','season']
+
     # 数据标准化
     scaler = RobustScaler()
     df[feature_cols] = scaler.fit_transform(df[feature_cols])
@@ -207,18 +208,31 @@ def main():
     df['trips'] = target_scaler.fit_transform(df[['trips']])
     
     # 模型参数
-    TIME_STEPS = 14
+    TIME_STEPS = 7
     BATCH_SIZE = 32
     NUM_EPOCHS = 200
+    # 控制是否打乱数据集
+    # SHUFFLE_SPLIT = True
+    SHUFFLE_SPLIT = False  # 关闭打乱数据集
     
-    # 创建数据集和加载器
+    # 创建数据集
     dataset = BikeDataset(df, feature_cols, 'trips', TIME_STEPS)
-    train_size = int(0.9 * len(dataset))
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [train_size, len(dataset) - train_size])
+    train_size = int(0.8 * len(dataset))
     
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
+    if SHUFFLE_SPLIT:
+        # 方式1：打乱后分割
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            dataset, [train_size, len(dataset) - train_size])
+    else:
+        # 方式2：按时间顺序分割
+        train_dataset = torch.utils.data.Subset(dataset, range(train_size))
+        val_dataset = torch.utils.data.Subset(dataset, range(train_size, len(dataset)))
+    
+    # 注意：只在训练集使用shuffle=True
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, 
+                            shuffle=SHUFFLE_SPLIT)  # 训练集是否打乱由SHUFFLE_SPLIT控制
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, 
+                          shuffle=False)  # 验证集永远不打乱
     
     # 模型初始化
     model = ImprovedTransformer(
