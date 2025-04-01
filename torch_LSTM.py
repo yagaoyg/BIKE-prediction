@@ -9,6 +9,7 @@ import torch.nn as nn
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import mean_squared_error
+import optuna  # 添加 optuna 库
 
 sns.set_style("darkgrid")
 
@@ -26,7 +27,7 @@ data = pd.read_csv('./data/' + data_name + '.csv',
 
 # 划分训练集和测试集
 train_percentage = 0.7
-test_percentage = 0.8
+test_percentage = 0.85
 train_size = int(len(data) * train_percentage)
 test_size = int(len(data) * test_percentage)
 train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
@@ -83,6 +84,15 @@ y_train = torch.tensor(y_train, dtype=torch.float32).to(device)
 x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
 y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 
+# 定义 input_size
+input_size = x_train.shape[2]
+
+# 定义损失函数
+criterion = nn.MSELoss()
+
+# 定义批量大小
+batch_size = 128
+
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
 
@@ -128,22 +138,60 @@ class MYLSTMModel(nn.Module):
     out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
     return out
 
-# 设置超参数
-input_size = x_train.shape[2]
-hidden_size1 = 128
-hidden_size2 = 80
-dropout1 = 0.4
-dropout2 = 0.3
-epochs = 2000
-batch_size = 128
-learning_rate = 0.001
+# 定义目标函数，用于 optuna 调优
+def objective(trial):
+    # 定义超参数搜索空间
+    hidden_size1 = trial.suggest_int('hidden_size1', 64, 256, step=32)
+    hidden_size2 = trial.suggest_int('hidden_size2', 32, 128, step=16)
+    dropout1 = trial.suggest_float('dropout1', 0.1, 0.5, step=0.1)
+    dropout2 = trial.suggest_float('dropout2', 0.1, 0.5, step=0.1)
+    learning_rate = trial.suggest_loguniform('learning_rate', 1e-4, 1e-2)
+    
+    # 创建模型
+    model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    
+    # 训练模型
+    best_val_loss = float('inf')
+    for epoch in range(50):  # 限制训练轮数以加速调优
+        model.train()
+        optimizer.zero_grad()
+        outputs = model(x_train)
+        loss = criterion(outputs.squeeze(), y_train)
+        loss.backward()
+        optimizer.step()
+        
+        # 验证集上的损失
+        model.eval()
+        with torch.no_grad():
+            val_outputs = model(x_test)
+            val_loss = criterion(val_outputs.squeeze(), y_test)
+        
+        # 更新最佳验证损失
+        if val_loss.item() < best_val_loss:
+            best_val_loss = val_loss.item()
+    
+    return best_val_loss
 
-# 创建自定义的LSTM模型
+# 使用 optuna 进行超参数调优
+study = optuna.create_study(direction='minimize')
+study.optimize(objective, n_trials=20)  # 设置调优的试验次数
+
+# 获取最佳超参数
+best_params = study.best_params
+hidden_size1 = best_params['hidden_size1']
+hidden_size2 = best_params['hidden_size2']
+dropout1 = best_params['dropout1']
+dropout2 = best_params['dropout2']
+learning_rate = best_params['learning_rate']
+
+# 输出最佳超参数
+print("Best hyperparameters:", best_params)
+
+# 使用最佳超参数创建最终模型
 model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
-
-# 定义损失函数和优化器
-criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
 
 # 训练模型
 train_losses, val_losses = [], []
@@ -152,7 +200,7 @@ best_epoch = 0
 
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=20, verbose=True)
 
-for epoch in range(epochs):
+for epoch in range(2000):
   model.train()
   optimizer.zero_grad()
 
@@ -180,7 +228,7 @@ for epoch in range(epochs):
     torch.save(model.state_dict(), temp_path)
 
   if (epoch + 1) % 10 == 0:
-    print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+    print(f'Epoch [{epoch+1}/2000], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
 # 加载最佳模型
 model.load_state_dict(torch.load(temp_path))
@@ -223,7 +271,7 @@ plt.show()
 torch.save(model.state_dict(), base_path + 'bike_pred_model.pth')
 
 # 记录数据指标
-new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
+new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,2000,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
 save_data = train_df._append(new_df)
 save_data.to_excel('train.xlsx',index=False)
 print('数据记录完成')

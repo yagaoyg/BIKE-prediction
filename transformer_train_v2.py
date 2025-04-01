@@ -314,7 +314,7 @@ def main():
     # 创建数据集
     dataset = BikeDataset(df, feature_cols, 'trips', TIME_STEPS)
     train_size = int(0.7 * len(dataset))
-    test_size = int(0.8 * len(dataset))
+    test_size = int(0.85 * len(dataset))
     
     # 方式2：按时间顺序分割
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))
