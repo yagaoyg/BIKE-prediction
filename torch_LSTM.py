@@ -25,10 +25,11 @@ data = pd.read_csv('./data/' + data_name + '.csv',
                    index_col=['date'])
 
 # 划分训练集和测试集
-train_percentage = 0.8
+train_percentage = 0.7
+test_percentage = 0.8
 train_size = int(len(data) * train_percentage)
-test_size = len(data) - train_size
-train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:len(data)]
+test_size = int(len(data) * test_percentage)
+train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
 
 # 选取特征
 cols = [
@@ -133,7 +134,7 @@ hidden_size1 = 128
 hidden_size2 = 80
 dropout1 = 0.4
 dropout2 = 0.3
-epochs = 4000
+epochs = 2000
 batch_size = 128
 learning_rate = 0.001
 

@@ -11,6 +11,7 @@ from datetime import datetime
 from sklearn.preprocessing import RobustScaler
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import optuna  # 新增
 
 # 配置设置
 sns.set_style("darkgrid")
@@ -93,36 +94,36 @@ def process_data(data_path):
     df = df.fillna(method='ffill').fillna(method='bfill')
     
     # 特征工程
-    df['year'] = df.index.year
-    df['month'] = df.index.month
-    df['day'] = df.index.day
-    df['dayofweek'] = df.index.dayofweek
+    # df['year'] = df.index.year
+    # df['month'] = df.index.month
+    # df['day'] = df.index.day
+    # df['dayofweek'] = df.index.dayofweek
     
     # 添加周期性特征
-    df['month_sin'] = np.sin(2 * np.pi * df['month']/12)
-    df['month_cos'] = np.cos(2 * np.pi * df['month']/12)
-    df['day_sin'] = np.sin(2 * np.pi * df['day']/31)
-    df['day_cos'] = np.cos(2 * np.pi * df['day']/31)
-    df['dow_sin'] = np.sin(2 * np.pi * df['dayofweek']/7)
-    df['dow_cos'] = np.cos(2 * np.pi * df['dayofweek']/7)
+    # df['month_sin'] = np.sin(2 * np.pi * df['month']/12)
+    # df['month_cos'] = np.cos(2 * np.pi * df['month']/12)
+    # df['day_sin'] = np.sin(2 * np.pi * df['day']/31)
+    # df['day_cos'] = np.cos(2 * np.pi * df['day']/31)
+    # df['dow_sin'] = np.sin(2 * np.pi * df['dayofweek']/7)
+    # df['dow_cos'] = np.cos(2 * np.pi * df['dayofweek']/7)
     
     # 滑动统计特征 - 添加最小值填充
-    df['trips_7d_mean'] = df['trips'].rolling(7, min_periods=1).mean()
-    df['trips_7d_std'] = df['trips'].rolling(7, min_periods=1).std()
+    # df['trips_7d_mean'] = df['trips'].rolling(7, min_periods=1).mean()
+    # df['trips_7d_std'] = df['trips'].rolling(7, min_periods=1).std()
     
     # 再次检查并填充任何剩余的NaN值
-    df = df.fillna(method='ffill').fillna(method='bfill')
+    # df = df.fillna(method='ffill').fillna(method='bfill')
     
     # 验证没有NaN值
-    if df.isna().any().any():
-        raise ValueError("Data still contains NaN values after processing")
+    # if df.isna().any().any():
+    #     raise ValueError("Data still contains NaN values after processing")
     
     return df
 
 def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer, 
                       scheduler, num_epochs, device, patience=20):
     best_val_loss = float('inf')
-    patience_counter = 0
+    # patience_counter = 0
     train_losses = []
     val_losses = []
     train_rmse = []  # 新增
@@ -191,15 +192,113 @@ def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer,
     
     return train_losses, val_losses, train_rmse, val_rmse
 
+def objective(trial):
+    # 定义超参数搜索空间
+    num_heads = trial.suggest_int("num_heads", 2, 8, step=2)
+    d_model = trial.suggest_int("d_model", num_heads * 8, num_heads * 32, step=num_heads * 8)  # 确保 d_model 是 num_heads 的倍数
+    ff_dim = trial.suggest_int("ff_dim", 128, 512, step=128)
+    num_layers = trial.suggest_int("num_layers", 1, 4)
+    dropout = trial.suggest_float("dropout", 0.1, 0.5, step=0.1)
+    learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 1e-3)
+    
+    # 数据准备
+    df = process_data('./data/daily_citi_bike_trip_counts_and_weather.csv')
+    feature_cols = [
+        'precipitation',
+        'snow_depth',
+        'snowfall',
+        'max_t',
+        'min_t',
+        'average_wind_speed',
+        'dow',
+        'year',
+        'month',
+        # 'stations_in_service',
+        'weekday',
+        'weekday_non_holiday',
+        'dt',
+        'season'
+    ]
+    scaler = RobustScaler()
+    df[feature_cols] = scaler.fit_transform(df[feature_cols])
+    target_scaler = RobustScaler()
+    df['trips'] = target_scaler.fit_transform(df[['trips']])
+    
+    TIME_STEPS = 1
+    BATCH_SIZE = 32
+    NUM_EPOCHS = 50  # 调优时减少训练轮数以加快速度
+    dataset = BikeDataset(df, feature_cols, 'trips', TIME_STEPS)
+    
+    train_size = int(0.7 * len(dataset))
+    val_size = int(0.8 * len(dataset))
+    
+    train_dataset = torch.utils.data.Subset(dataset, range(train_size))
+    val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    
+    # 模型初始化
+    model = ImprovedTransformer(
+        input_dim=len(feature_cols),
+        d_model=d_model,
+        num_heads=num_heads,
+        ff_dim=ff_dim,
+        num_layers=num_layers,
+        dropout=dropout,
+        time_steps=TIME_STEPS
+    ).to(device)
+    
+    # 优化配置
+    criterion = nn.HuberLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
+                                                     factor=0.5, patience=10, verbose=False)
+    
+    # 训练模型
+    train_losses, val_losses, train_rmse, val_rmse = train_and_evaluate(
+        model, train_loader, val_loader, criterion, optimizer, scheduler,
+        NUM_EPOCHS, device)
+    
+    # 返回验证集的最终RMSE作为目标值
+    return val_rmse[-1]
+
 def main():
+    # 使用Optuna进行超参数调优
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=20)  # 运行20次实验
+    
+    # 输出最佳超参数
+    print("Best hyperparameters:", study.best_params)
+    
+    # 使用最佳超参数重新训练模型
+    best_params = study.best_params
+    d_model = best_params["d_model"]
+    num_heads = best_params["num_heads"]
+    ff_dim = best_params["ff_dim"]
+    num_layers = best_params["num_layers"]
+    dropout = best_params["dropout"]
+    learning_rate = best_params["learning_rate"]
+    
     # 数据准备
     df = process_data('./data/daily_citi_bike_trip_counts_and_weather.csv')
     
     # 特征选择
-    feature_cols = ['precipitation', 'snow_depth', 'snowfall', 'max_t', 'min_t',
-                   'average_wind_speed', 'month_sin', 'month_cos', 'day_sin', 
-                   'day_cos', 'dow_sin', 'dow_cos', 'trips_7d_mean', 'trips_7d_std',
-                   'weekday','weekday_non_holiday','dt','season']
+    feature_cols = [
+        'precipitation',
+        'snow_depth',  
+        'snowfall',
+        'max_t',
+        'min_t',
+        'average_wind_speed',
+        'dow',
+        'year',
+        'month',
+        # 'stations_in_service',
+        'weekday',
+        'weekday_non_holiday',
+        'dt',
+        'season'
+    ]
 
     # 数据标准化
     scaler = RobustScaler()
@@ -208,46 +307,39 @@ def main():
     df['trips'] = target_scaler.fit_transform(df[['trips']])
     
     # 模型参数
-    TIME_STEPS = 7
+    TIME_STEPS = 1
     BATCH_SIZE = 32
     NUM_EPOCHS = 200
-    # 控制是否打乱数据集
-    # SHUFFLE_SPLIT = True
-    SHUFFLE_SPLIT = False  # 关闭打乱数据集
     
     # 创建数据集
     dataset = BikeDataset(df, feature_cols, 'trips', TIME_STEPS)
-    train_size = int(0.8 * len(dataset))
+    train_size = int(0.7 * len(dataset))
+    test_size = int(0.8 * len(dataset))
     
-    if SHUFFLE_SPLIT:
-        # 方式1：打乱后分割
-        train_dataset, val_dataset = torch.utils.data.random_split(
-            dataset, [train_size, len(dataset) - train_size])
-    else:
-        # 方式2：按时间顺序分割
-        train_dataset = torch.utils.data.Subset(dataset, range(train_size))
-        val_dataset = torch.utils.data.Subset(dataset, range(train_size, len(dataset)))
+    # 方式2：按时间顺序分割
+    train_dataset = torch.utils.data.Subset(dataset, range(train_size))
+    val_dataset = torch.utils.data.Subset(dataset, range(train_size, test_size))
     
     # 注意：只在训练集使用shuffle=True
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, 
-                            shuffle=SHUFFLE_SPLIT)  # 训练集是否打乱由SHUFFLE_SPLIT控制
+                            shuffle=False)  # 训练集是否打乱由SHUFFLE_SPLIT控制
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, 
                           shuffle=False)  # 验证集永远不打乱
     
     # 模型初始化
     model = ImprovedTransformer(
         input_dim=len(feature_cols),
-        d_model=64,
-        num_heads=4,
-        ff_dim=256,
-        num_layers=3,
-        dropout=0.1,
+        d_model=d_model,
+        num_heads=num_heads,
+        ff_dim=ff_dim,
+        num_layers=num_layers,
+        dropout=dropout,
         time_steps=TIME_STEPS
     ).to(device)
     
     # 训练配置
     criterion = nn.HuberLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
                                                    factor=0.5, patience=10, 
                                                    verbose=True)
