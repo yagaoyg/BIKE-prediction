@@ -370,36 +370,39 @@ def main():
     
     # 计算RMSE
     final_rmse = np.sqrt(mean_squared_error(val_trues, val_preds))
+    
+    # 计算平均绝对百分比误差（MAPE）
+    final_mape = np.mean(np.abs((val_trues - val_preds) / val_trues)) * 100
+    
+    # 计算加权平均百分比误差（WAPE）
+    final_wape = np.sum(np.abs(val_trues - val_preds)) / np.sum(np.abs(val_trues)) * 100
+    
+    # 计算决定系数（R²）
+    final_r2 = r2_score(val_trues, val_preds)
+    
+    print(f"Final RMSE: {final_rmse:.4f}")
+    print(f"Final MAPE: {final_mape:.2f}%")
+    print(f"Final WAPE: {final_wape:.2f}%")
+    print(f"Final R²: {final_r2:.4f}")
         
     # 损失曲线
     plt.figure(figsize=(6,4))
     plt.plot(train_losses, label='Training Loss')
     plt.plot(val_losses, label='Validation Loss')
     plt.title('Model Loss')
-    # plt.xlabel('Epoch')
-    # plt.ylabel('Loss')
     plt.legend()
     plt.savefig(f'{save_dir}/loss.png')
     plt.show()
     
     # 预测结果对比
     plt.figure(figsize=(12, 4))
-    plt.plot(val_trues, label='True Values',marker='.', alpha=0.7)
-    plt.plot(val_preds, label='Predictions',marker='.', alpha=0.7)
-    plt.title(f'Predictions vs True Values (RMSE={final_rmse:.2f})')
-    # plt.xlabel('Time Steps')
-    # plt.ylabel('Bike Trips')
+    plt.plot(val_trues, label='True Values', marker='.', alpha=0.7)
+    plt.plot(val_preds, label='Predictions', marker='.', alpha=0.7)
+    plt.title(f'Predictions vs True Values (RMSE={final_rmse:.2f}, MAPE={final_mape:.2f}%, WAPE={final_wape:.2f}%, R²={final_r2:.4f})')
     plt.legend()
     
-    # plt.tight_layout()
     plt.savefig(f'{save_dir}/training_results.png')
     plt.show()
-    
-    # # 保存最终的指标
-    # with open(f'{save_dir}/metrics.txt', 'w') as f:
-    #     f.write(f'Final RMSE: {final_rmse:.4f}\n')
-    #     f.write(f'Final Training Loss: {train_losses[-1]:.4f}\n')
-    #     f.write(f'Final Validation Loss: {val_losses[-1]:.4f}\n')
     
     # 保存完整模型和参数
     torch.save(model.state_dict(), f'{save_dir}/final_model_state.pth')

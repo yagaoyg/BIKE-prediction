@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 import optuna  # 添加 optuna 库
 
 sns.set_style("darkgrid")
@@ -73,7 +73,7 @@ def create_dataset(x, y, time_steps=1):
       ys.append(y.iloc[i + time_steps])
   return np.array(xs), np.array(ys)
 
-time_steps = 1
+time_steps = 7
 
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
@@ -257,15 +257,28 @@ y_test_inv = trips_transformer.inverse_transform(y_test.cpu().numpy().reshape(1,
 
 # 计算均方根误差
 rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv.flatten(), y_pred_inv.flatten())), 6)
+
+# 计算平均绝对百分比误差（MAPE）
+mape_lstm = round(np.mean(np.abs((y_test_inv.flatten() - y_pred_inv.flatten()) / y_test_inv.flatten())) * 100, 2)
+
+# 计算加权平均百分比误差（WAPE）
+wape_lstm = round(np.sum(np.abs(y_test_inv.flatten() - y_pred_inv.flatten())) / np.sum(np.abs(y_test_inv.flatten())) * 100, 2)
+
+# 计算决定系数（R²）
+r2_lstm = round(r2_score(y_test_inv.flatten(), y_pred_inv.flatten()), 6)
+
 print(f"RMSE: {rmse_lstm}")
+print(f"MAPE: {mape_lstm}%")
+print(f"WAPE: {wape_lstm}%")
+print(f"R²: {r2_lstm}")
 
 # 绘制预测结果
 plt.figure(figsize=(12, 4))
 plt.plot(y_test_inv.flatten(), marker='.', label="true")
 plt.plot(y_pred_inv.flatten(), marker='.', label="pred")
-plt.title(f'LSTM Prediction RMSE: {rmse_lstm}')
+plt.title(f'LSTM Prediction RMSE: {rmse_lstm}, MAPE: {mape_lstm}%, WAPE: {wape_lstm}%, R²: {r2_lstm}')
 plt.legend()
-plt.savefig(base_path + str(rmse_lstm) + '_LSTM.png')
+plt.savefig(base_path + f'{rmse_lstm}_LSTM.png')
 plt.show()
 
 torch.save(model.state_dict(), base_path + 'bike_pred_model.pth')
