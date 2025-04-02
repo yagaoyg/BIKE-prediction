@@ -14,38 +14,75 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import optuna  # 新增
 
 # 配置设置
-sns.set_style("darkgrid")
-torch.manual_seed(42)
-np.random.seed(42)
+sns.set_style("darkgrid")  # 设置 Seaborn 图表样式
+torch.manual_seed(42)  # 设置 PyTorch 随机种子
+np.random.seed(42)  # 设置 NumPy 随机种子
 
 # 硬件检测
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 检测是否有 GPU 可用
+print(f"Using device: {device}")  # 打印使用的设备信息
 
 class BikeDataset(Dataset):
+    """
+    自定义数据集类，用于处理时间序列数据。
+    """
     def __init__(self, data, feature_cols, target_col, time_steps=7, future_steps=1):
+        # 创建时间序列数据
         self.X, self.y = self.create_sequences(data, feature_cols, target_col, time_steps, future_steps)
         
     def create_sequences(self, data, feature_cols, target_col, time_steps, future_steps):
+        """
+        根据时间步长和未来步长生成输入和目标序列。
+        """
         X, y = [], []
         for i in range(len(data) - time_steps - future_steps + 1):
-            X.append(data[feature_cols].iloc[i:i+time_steps].values)
-            y.append(data[target_col].iloc[i+time_steps:i+time_steps+future_steps].values)
+            X.append(data[feature_cols].iloc[i:i+time_steps].values)  # 提取特征序列
+            y.append(data[target_col].iloc[i+time_steps:i+time_steps+future_steps].values)  # 提取目标序列
         return torch.FloatTensor(np.array(X)), torch.FloatTensor(np.array(y))
     
     def __len__(self):
+        # 返回数据集的样本数量
         return len(self.X)
     
     def __getitem__(self, idx):
+        # 根据索引返回样本
         return self.X[idx], self.y[idx]
 
+class HierarchicalFeatureProcessor(nn.Module):
+    """
+    层次化特征处理模块，用于对输入特征进行分层处理。
+    """
+    def __init__(self, input_dim, hidden_dim, output_dim, dropout=0.1):
+        super().__init__()
+        self.layer1 = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),  # 第一层全连接
+            nn.ReLU(),  # 激活函数
+            nn.Dropout(dropout)  # Dropout 防止过拟合
+        )
+        self.layer2 = nn.Sequential(
+            nn.Linear(hidden_dim, output_dim),  # 第二层全连接
+            nn.ReLU(),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        # 前向传播
+        x = self.layer1(x)
+        x = self.layer2(x)
+        return x
+
 class ImprovedTransformer(nn.Module):
+    """
+    改进的 Transformer 模型，支持层次化特征处理和注意力权重输出。
+    """
     def __init__(self, input_dim, d_model=64, num_heads=4, ff_dim=256, num_layers=3, 
                  dropout=0.1, time_steps=7):
         super().__init__()
-        self.input_proj = nn.Linear(input_dim, d_model)
-        self.pos_encoder = PositionalEncoding(d_model, time_steps)
+        self.feature_processor = HierarchicalFeatureProcessor(input_dim, d_model, d_model, dropout)  # 层次化特征处理
+        self.input_proj = nn.Linear(d_model, d_model)  # 输入投影层
+        self.pos_encoder = PositionalEncoding(d_model, time_steps)  # 位置编码
         
+        # Transformer 编码器层
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
             nhead=num_heads,
@@ -53,116 +90,103 @@ class ImprovedTransformer(nn.Module):
             dropout=dropout,
             batch_first=True
         )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)  # 多层编码器
         
+        self.attention_weights = nn.Linear(d_model, 1)  # 注意力权重计算层
         self.decoder = nn.Sequential(
-            nn.Linear(d_model, ff_dim),
+            nn.Linear(d_model, ff_dim),  # 解码器第一层
+            nn.GELU(),  # 激活函数
+            nn.Dropout(dropout),
+            nn.Linear(ff_dim, ff_dim // 2),  # 解码器第二层
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(ff_dim, ff_dim // 2),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(ff_dim // 2, 1)
+            nn.Linear(ff_dim // 2, 1)  # 输出层
         )
         
     def forward(self, x, mask=None):
-        x = self.input_proj(x)
-        x = self.pos_encoder(x)
-        x = self.transformer(x, mask)
-        x = torch.mean(x, dim=1)  # Global average pooling
-        return self.decoder(x)
+        # 前向传播
+        x = self.feature_processor(x)  # 层次化特征处理
+        x = self.input_proj(x)  # 输入投影
+        x = self.pos_encoder(x)  # 添加位置编码
+        x = self.transformer(x, mask)  # Transformer 编码器
+        
+        # 计算注意力权重并加权求和
+        attention_scores = torch.softmax(self.attention_weights(x), dim=1)
+        x = torch.sum(x * attention_scores, dim=1)
+        
+        return self.decoder(x), attention_scores  # 返回解码结果和注意力权重
 
 class PositionalEncoding(nn.Module):
+    """
+    位置编码模块，用于为输入添加位置信息。
+    """
     def __init__(self, d_model, max_len=5000):
         super().__init__()
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0)
-        self.register_buffer('pe', pe)
+        pe = torch.zeros(max_len, d_model)  # 初始化位置编码矩阵
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)  # 位置索引
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))  # 频率因子
+        pe[:, 0::2] = torch.sin(position * div_term)  # 偶数位置使用正弦函数
+        pe[:, 1::2] = torch.cos(position * div_term)  # 奇数位置使用余弦函数
+        pe = pe.unsqueeze(0)  # 添加批次维度
+        self.register_buffer('pe', pe)  # 注册为缓冲区，不参与梯度计算
 
     def forward(self, x):
+        # 将位置编码添加到输入
         return x + self.pe[:, :x.size(1)]
 
 def process_data(data_path):
-    # 读取数据
-    df = pd.read_csv(data_path, parse_dates=['date'], index_col='date')
-    
-    # 首先处理原始数据中的NaN值
-    df = df.fillna(method='ffill').fillna(method='bfill')
-    
-    # 特征工程
-    # df['year'] = df.index.year
-    # df['month'] = df.index.month
-    # df['day'] = df.index.day
-    # df['dayofweek'] = df.index.dayofweek
-    
-    # 添加周期性特征
-    # df['month_sin'] = np.sin(2 * np.pi * df['month']/12)
-    # df['month_cos'] = np.cos(2 * np.pi * df['month']/12)
-    # df['day_sin'] = np.sin(2 * np.pi * df['day']/31)
-    # df['day_cos'] = np.cos(2 * np.pi * df['day']/31)
-    # df['dow_sin'] = np.sin(2 * np.pi * df['dayofweek']/7)
-    # df['dow_cos'] = np.cos(2 * np.pi * df['dayofweek']/7)
-    
-    # 滑动统计特征 - 添加最小值填充
-    # df['trips_7d_mean'] = df['trips'].rolling(7, min_periods=1).mean()
-    # df['trips_7d_std'] = df['trips'].rolling(7, min_periods=1).std()
-    
-    # 再次检查并填充任何剩余的NaN值
-    # df = df.fillna(method='ffill').fillna(method='bfill')
-    
-    # 验证没有NaN值
-    # if df.isna().any().any():
-    #     raise ValueError("Data still contains NaN values after processing")
-    
+    """
+    数据预处理函数，读取数据并处理缺失值。
+    """
+    df = pd.read_csv(data_path, parse_dates=['date'], index_col='date')  # 读取 CSV 数据
+    df = df.fillna(method='ffill').fillna(method='bfill')  # 填充缺失值
     return df
 
 def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer, 
                       scheduler, num_epochs, device, patience=20):
-    best_val_loss = float('inf')
-    # patience_counter = 0
-    train_losses = []
-    val_losses = []
-    train_rmse = []  # 新增
-    val_rmse = []    # 新增
+    """
+    训练和评估模型。
+    """
+    best_val_loss = float('inf')  # 初始化最佳验证损失
+    train_losses = []  # 记录训练损失
+    val_losses = []  # 记录验证损失
+    train_rmse = []  # 记录训练 RMSE
+    val_rmse = []  # 记录验证 RMSE
     
     for epoch in range(num_epochs):
         # 训练阶段
         model.train()
         train_loss = 0
-        train_preds = []  # 新增
-        train_trues = []  # 新增
+        train_preds = []  # 收集训练预测值
+        train_trues = []  # 收集训练真实值
         
         for batch_X, batch_y in train_loader:
             batch_X, batch_y = batch_X.to(device), batch_y.to(device)
             optimizer.zero_grad()
-            outputs = model(batch_X)
+            outputs, _ = model(batch_X)  # 修改为接收注意力权重
             loss = criterion(outputs, batch_y)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # 梯度裁剪
             optimizer.step()
             train_loss += loss.item()
             
-            # 收集预测值和真实值用于计算RMSE
+            # 收集预测值和真实值用于计算 RMSE
             train_preds.extend(outputs.cpu().detach().numpy())
             train_trues.extend(batch_y.cpu().numpy())
             
         # 验证阶段
         model.eval()
         val_loss = 0
-        val_preds = []  # 新增
-        val_trues = []  # 新增
+        val_preds = []  # 收集验证预测值
+        val_trues = []  # 收集验证真实值
         
         with torch.no_grad():
             for batch_X, batch_y in val_loader:
                 batch_X, batch_y = batch_X.to(device), batch_y.to(device)
-                outputs = model(batch_X)
+                outputs, _ = model(batch_X)  # 修改为接收注意力权重
                 val_loss += criterion(outputs, batch_y).item()
                 
-                # 收集预测值和真实值用于计算RMSE
+                # 收集预测值和真实值用于计算 RMSE
                 val_preds.extend(outputs.cpu().numpy())
                 val_trues.extend(batch_y.cpu().numpy())
         
@@ -170,11 +194,11 @@ def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer,
         train_loss /= len(train_loader)
         val_loss /= len(val_loader)
         
-        # 计算RMSE
+        # 计算 RMSE
         current_train_rmse = np.sqrt(mean_squared_error(train_trues, train_preds))
         current_val_rmse = np.sqrt(mean_squared_error(val_trues, val_preds))
         
-        # 记录损失和RMSE
+        # 记录损失和 RMSE
         train_losses.append(train_loss)
         val_losses.append(val_loss)
         train_rmse.append(current_train_rmse)
@@ -183,7 +207,7 @@ def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer,
         # 早停检查
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), './model/temp/temp.pth')
+            torch.save(model.state_dict(), './model/temp/temp.pth')  # 保存最佳模型
         
         scheduler.step(val_loss)
         
@@ -193,6 +217,9 @@ def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer,
     return train_losses, val_losses, train_rmse, val_rmse
 
 def objective(trial):
+    """
+    Optuna 超参数调优目标函数。
+    """
     # 定义超参数搜索空间
     num_heads = trial.suggest_int("num_heads", 2, 8, step=2)
     d_model = trial.suggest_int("d_model", num_heads * 8, num_heads * 32, step=num_heads * 8)  # 确保 d_model 是 num_heads 的倍数
@@ -259,13 +286,16 @@ def objective(trial):
         model, train_loader, val_loader, criterion, optimizer, scheduler,
         NUM_EPOCHS, device)
     
-    # 返回验证集的最终RMSE作为目标值
+    # 返回验证集的最终 RMSE 作为目标值
     return val_rmse[-1]
 
 def main():
-    # 使用Optuna进行超参数调优
+    """
+    主函数，执行超参数调优和模型训练。
+    """
+    # 使用 Optuna 进行超参数调优
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=20)  # 运行20次实验
+    study.optimize(objective, n_trials=20)  # 运行 20 次实验
     
     # 输出最佳超参数
     print("Best hyperparameters:", study.best_params)
@@ -316,13 +346,13 @@ def main():
     train_size = int(0.7 * len(dataset))
     test_size = int(0.85 * len(dataset))
     
-    # 方式2：按时间顺序分割
+    # 方式 2：按时间顺序分割
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))
     val_dataset = torch.utils.data.Subset(dataset, range(train_size, test_size))
     
-    # 注意：只在训练集使用shuffle=True
+    # 注意：只在训练集使用 shuffle=True
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, 
-                            shuffle=False)  # 训练集是否打乱由SHUFFLE_SPLIT控制
+                            shuffle=False)  # 训练集是否打乱由 SHUFFLE_SPLIT 控制
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, 
                           shuffle=False)  # 验证集永远不打乱
     
@@ -357,18 +387,35 @@ def main():
     model.eval()
     val_preds = []
     val_trues = []
+    attention_scores_list = []  # 新增
     with torch.no_grad():
         for batch_X, batch_y in val_loader:
             batch_X = batch_X.to(device)
-            outputs = model(batch_X)
+            outputs, attention_scores = model(batch_X)  # 获取注意力权重
             val_preds.extend(outputs.cpu().numpy())
             val_trues.extend(batch_y.numpy())
+            attention_scores_list.append(attention_scores.cpu())  # 收集注意力权重
     
     # 反标准化预测结果
-    val_preds = target_scaler.inverse_transform(np.array(val_preds))
-    val_trues = target_scaler.inverse_transform(np.array(val_trues).reshape(-1, 1))
+    val_preds = np.array(val_preds)  # 转换为 NumPy 数组
+    val_trues = np.array(val_trues)  # 转换为 NumPy 数组
+
+    # 打印形状以调试
+    print(f"val_preds shape before reshape: {val_preds.shape}")
+    print(f"val_trues shape before reshape: {val_trues.shape}")
+
+    # 确保形状为 (N, 1)
+    val_preds = val_preds.reshape(-1, 1) if val_preds.ndim == 2 else val_preds.squeeze(-1).reshape(-1, 1)
+    val_trues = val_trues.reshape(-1, 1) if val_trues.ndim == 2 else val_trues.squeeze(-1).reshape(-1, 1)
+
+    # 打印形状以确认调整
+    print(f"val_preds shape after reshape: {val_preds.shape}")
+    print(f"val_trues shape after reshape: {val_trues.shape}")
+
+    val_preds = target_scaler.inverse_transform(val_preds)
+    val_trues = target_scaler.inverse_transform(val_trues)
     
-    # 计算RMSE
+    # 计算 RMSE
     final_rmse = np.sqrt(mean_squared_error(val_trues, val_preds))
     
     # 计算平均绝对百分比误差（MAPE）
