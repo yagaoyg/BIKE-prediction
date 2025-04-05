@@ -30,6 +30,7 @@ train_percentage = 0.7
 test_percentage = 0.85
 train_size = int(len(data) * train_percentage)
 test_size = int(len(data) * test_percentage)
+# test_size = train_size + 21
 train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
 
 # 选取特征
@@ -43,7 +44,7 @@ cols = [
   'dow',
   'year',
   'month',
-  # 'stations_in_service',
+  # 'stations_in_service',  # 取消注释，添加该特征
   'weekday',
   'weekday_non_holiday',
   'dt',
@@ -73,7 +74,7 @@ def create_dataset(x, y, time_steps=1):
       ys.append(y.iloc[i + time_steps])
   return np.array(xs), np.array(ys)
 
-time_steps = 7
+time_steps = 1
 
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
@@ -116,9 +117,9 @@ start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 class MYLSTMModel(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
     super(MYLSTMModel, self).__init__()
-    self.conv1 = nn.Conv1d(input_size, 64, kernel_size=3, padding=1)
-    self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
-    self.lstm1 = nn.LSTM(128, hidden_size1, batch_first=True, bidirectional=True)
+    self.conv1 = nn.Conv1d(input_size, 32, kernel_size=3, padding=1)
+    self.conv2 = nn.Conv1d(32, 48, kernel_size=3, padding=1)
+    self.lstm1 = nn.LSTM(48, hidden_size1, batch_first=True, bidirectional=True)
     self.dropout1 = nn.Dropout(dropout1)
     self.lstm2 = nn.LSTM(hidden_size1 * 2, hidden_size2, batch_first=True, bidirectional=True)
     self.dropout2 = nn.Dropout(dropout2)

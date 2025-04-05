@@ -1,6 +1,8 @@
 .vscode
 .venv
+
 ~$train.xlsx
 model
 *.ipynb
 .VSCodeCounter
+results
