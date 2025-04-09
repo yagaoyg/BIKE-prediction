@@ -138,8 +138,8 @@ def process_data(data_path):
     """
     数据预处理函数，读取数据并处理缺失值。
     """
-    df = pd.read_csv(data_path, parse_dates=['date'], index_col='date')  # 读取 CSV 数据
-    df = df.fillna(method='ffill').fillna(method='bfill')  # 填充缺失值
+    df = pd.read_csv(data_path, index_col='datetime')  # 读取 CSV 数据
+    # df = df.fillna(method='ffill').fillna(method='bfill')  # 填充缺失值
     return df
 
 def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer, 
@@ -209,7 +209,7 @@ def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer,
             best_val_loss = val_loss
             torch.save(model.state_dict(), './model/temp/temp.pth')  # 保存最佳模型
         
-        scheduler.step(val_loss)
+        # scheduler.step(val_loss)
         
         if (epoch + 1) % 10 == 0:
             print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Train RMSE: {current_train_rmse:.4f}, Val RMSE: {current_val_rmse:.4f}')
@@ -229,32 +229,26 @@ def objective(trial):
     learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 1e-3)
     
     # 数据准备
-    df = process_data('./data/daily_citi_bike_trip_counts_and_weather.csv')
+    df = process_data('./data/china_bike_data_2022.csv')
     feature_cols = [
-        'precipitation',
-        'snow_depth',
-        'snowfall',
-        'max_t',
-        'min_t',
-        'average_wind_speed',
-        'dow',
-        'year',
-        'month',
-        # 'stations_in_service',
-        'weekday',
-        'weekday_non_holiday',
-        'dt',
-        'season'
+        'season',
+        'holiday',
+        'workingday',
+        'weather',
+        'temp',
+        'atemp',
+        'humidity',
+        'windspeed'
     ]
     scaler = RobustScaler()
     df[feature_cols] = scaler.fit_transform(df[feature_cols])
     target_scaler = RobustScaler()
-    df['trips'] = target_scaler.fit_transform(df[['trips']])
+    df['count'] = target_scaler.fit_transform(df[['count']])
     
-    TIME_STEPS = 1
+    TIME_STEPS = 12
     BATCH_SIZE = 32
     NUM_EPOCHS = 50  # 调优时减少训练轮数以加快速度
-    dataset = BikeDataset(df, feature_cols, 'trips', TIME_STEPS)
+    dataset = BikeDataset(df, feature_cols, 'count', TIME_STEPS)
     
     train_size = int(0.7 * len(dataset))
     val_size = int(0.8 * len(dataset))
@@ -294,58 +288,58 @@ def main():
     主函数，执行超参数调优和模型训练。
     """
     # 使用 Optuna 进行超参数调优
-    study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=10)  # 运行 20 次实验
+    # study = optuna.create_study(direction="minimize")
+    # study.optimize(objective, n_trials=10)  # 运行 10 次实验
     
     # 输出最佳超参数
-    print("Best hyperparameters:", study.best_params)
+    # print("Best hyperparameters:", study.best_params)
     
     # 使用最佳超参数重新训练模型
-    best_params = study.best_params
-    d_model = best_params["d_model"]
-    num_heads = best_params["num_heads"]
-    ff_dim = best_params["ff_dim"]
-    num_layers = best_params["num_layers"]
-    dropout = best_params["dropout"]
-    learning_rate = best_params["learning_rate"]
+    # best_params = study.best_params
+    # d_model = best_params["d_model"]
+    # num_heads = best_params["num_heads"]
+    # ff_dim = best_params["ff_dim"]
+    # num_layers = best_params["num_layers"]
+    # dropout = best_params["dropout"]
+    # learning_rate = best_params["learning_rate"]
+    
+    d_model = 128
+    num_heads = 4
+    ff_dim = 128
+    num_layers = 2
+    dropout = 0.4
+    learning_rate = 1e-5
     
     # 数据准备
-    df = process_data('./data/daily_citi_bike_trip_counts_and_weather.csv')
+    df = process_data('./data/china_bike_data_2022.csv')
     
     # 特征选择
     feature_cols = [
-        'precipitation',
-        'snow_depth',  
-        'snowfall',
-        'max_t',
-        'min_t',
-        'average_wind_speed',
-        'dow',
-        'year',
-        'month',
-        # 'stations_in_service',
-        'weekday',
-        'weekday_non_holiday',
-        'dt',
-        'season'
+        'season',
+        'holiday',
+        'workingday',
+        'weather',
+        'temp',
+        'atemp',
+        'humidity',
+        'windspeed'
     ]
 
     # 数据标准化
     scaler = RobustScaler()
     df[feature_cols] = scaler.fit_transform(df[feature_cols])
     target_scaler = RobustScaler()
-    df['trips'] = target_scaler.fit_transform(df[['trips']])
+    df['count'] = target_scaler.fit_transform(df[['count']])
     
     # 模型参数
-    TIME_STEPS = 1
-    BATCH_SIZE = 64
+    TIME_STEPS = 7
+    BATCH_SIZE = 32
     NUM_EPOCHS = 200
     
     # 创建数据集
-    dataset = BikeDataset(df, feature_cols, 'trips', TIME_STEPS)
-    train_size = int(0.7 * len(dataset))
-    # test_size = train_size + 42  # 42 天的验证集
-    test_size = int(0.85 * len(dataset))
+    dataset = BikeDataset(df, feature_cols, 'count', TIME_STEPS)
+    train_size = int(0.5 * len(dataset))
+    test_size = int(0.6 * len(dataset))
     
     # 方式 2：按时间顺序分割
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))

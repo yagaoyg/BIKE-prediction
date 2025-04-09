@@ -30,7 +30,7 @@ train_percentage = 0.7
 test_percentage = 0.85
 train_size = int(len(data) * train_percentage)
 test_size = int(len(data) * test_percentage)
-# test_size = train_size + 21
+# test_size = train_size + 42
 train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
 
 # 选取特征
