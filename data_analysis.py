@@ -11,52 +11,67 @@ from sklearn.linear_model import LinearRegression
 
 sns.set_style("darkgrid")
     
-# data_name = 'daily_citi_bike_trip_counts_and_weather'
-data_name = 'china_bike_data_2022'
+data_name = 'daily_citi_bike_trip_counts_and_weather'
+# data_name = 'china_bike_data_2022'
 
 # 引入数据集
-# data = pd.read_csv('./data/' + data_name + '.csv',
-#                    parse_dates=['date'],
-#                    index_col=['date'],
-#                   #  usecols=['date',
-#                   #           'trips',
-#                   #           'precipitation',
-#                   #           'snowfall',
-#                   #           'max_t',
-#                   #           'min_t',
-#                   #           'average_wind_speed',
-#                   #           'dow',
-#                   #           'holiday',
-#                   #           'stations_in_service',
-#                   #           'weekday',
-#                   #           'weekday_non_holiday',
-#                   #           'month',
-#                   #           'dt',
-#                   #           'day',
-#                   #           'year']
-#                    )
-
 data = pd.read_csv('./data/' + data_name + '.csv',
-                   parse_dates=['datetime'],
-                   index_col=['datetime'])
+                   parse_dates=['date'],
+                   index_col=['date'],
+                  #  usecols=['date',
+                  #           'trips',
+                  #           'precipitation',
+                  #           'snowfall',
+                  #           'max_t',
+                  #           'min_t',
+                  #           'average_wind_speed',
+                  #           'dow',
+                  #           'holiday',
+                  #           'stations_in_service',
+                  #           'weekday',
+                  #           'weekday_non_holiday',
+                  #           'month',
+                  #           'dt',
+                  #           'day',
+                  #           'year']
+                   )
 
-# 以日期为x轴，骑行次数为y轴，绘制折线图
-# plt.figure(figsize=(15,5))
-# sns.lineplot(data=data, x=data.index, y=data.trips)
-# plt.show()
+# data = pd.read_csv('./data/' + data_name + '.csv',
+#                    parse_dates=['datetime'],
+#                    index_col=['datetime'])
 
 # 以日期为x轴，骑行次数为y轴，绘制折线图
 plt.figure(figsize=(15,5))
-sns.lineplot(data=data, x=data.index, y=data['count'])
+sns.lineplot(data=data, x=data.index, y=data.trips)
 plt.show()
+
+# 以日期为x轴，骑行次数为y轴，绘制折线图
+# plt.figure(figsize=(15,5))
+# sns.lineplot(data=data, x=data.index, y=data['count'])
+# plt.show()
 
 # print(data.head())
 
 # 以月份为x轴，骑行次数为y轴，绘制折线图
-# data_month = data.resample('M').sum()
-# plt.figure(figsize=(15,5))
-# sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips)
-# plt.show()
+data_month = data.resample('M').sum()
+plt.figure(figsize=(15,5))
+sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips, marker='o')
+plt.show()
+
+# 数值型特征的统计分析
+numerical_features = ['trips', 'precipitation', 'snowfall', 'max_t', 'min_t', 'average_wind_speed']
+stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
+print("\n数值型特征的统计分析：")
+print(stats_df)
+
+# 绘制数值型特征的分布直方图
+plt.figure(figsize=(15, 10))
+for i, feature in enumerate(numerical_features, 1):
+    plt.subplot(2, 3, i)
+    sns.histplot(data=data[feature], kde=True)
+    plt.title(f'{feature}的分布')
+plt.tight_layout()
+plt.show()
 
 # 降雨量
 # plt.figure(figsize=(15,5))
@@ -99,11 +114,11 @@ plt.show()
 # plt.show()
 
 # 分析所有特征与骑行次数的关系
-corr = data.corr()
-plt.figure(figsize=(13, 13))
-sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-plt.title("heatmap")
-plt.show()
+# corr = data.corr()
+# plt.figure(figsize=(13, 13))
+# sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+# plt.title("heatmap")
+# plt.show()
 
 # 按时间显示运营中的站点数量
 # plt.figure(figsize=(15,5))
