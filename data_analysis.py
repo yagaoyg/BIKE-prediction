@@ -43,6 +43,7 @@ data = pd.read_csv('./data/' + data_name + '.csv',
 # 以日期为x轴，骑行次数为y轴，绘制折线图
 plt.figure(figsize=(15,5))
 sns.lineplot(data=data, x=data.index, y=data.trips)
+plt.savefig('./output/trips of day.png')
 plt.show()
 
 # 以日期为x轴，骑行次数为y轴，绘制折线图
@@ -56,22 +57,73 @@ plt.show()
 data_month = data.resample('M').sum()
 plt.figure(figsize=(15,5))
 sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips, marker='o')
+plt.savefig('./output/trips of month.png')
 plt.show()
 
 # 数值型特征的统计分析
-numerical_features = ['trips', 'precipitation', 'snowfall', 'max_t', 'min_t', 'average_wind_speed']
-stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
-print("\n数值型特征的统计分析：")
-print(stats_df)
+# numerical_features = ['trips', 'precipitation', 'snowfall', 'max_t', 'min_t', 'average_wind_speed','stations_in_service','dt']
+# stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
+# print("\n数值型特征的统计分析：")
+# print(stats_df)
 
 # 绘制数值型特征的分布直方图
-plt.figure(figsize=(15, 10))
-for i, feature in enumerate(numerical_features, 1):
-    plt.subplot(2, 3, i)
-    sns.histplot(data=data[feature], kde=True)
-    plt.title(f'{feature}的分布')
-plt.tight_layout()
+# plt.figure(figsize=(16, 8))
+# for i, feature in enumerate(numerical_features, 1):
+#     plt.subplot(2, 4, i)
+#     sns.histplot(data=data[feature], kde=True)
+#     plt.title(f'{feature}')
+# plt.tight_layout()
+# plt.savefig('./output/' + data_name + '_numerical_features_distribution.png')
+# plt.show()
+
+# 服务中的站点数量
+plt.figure(figsize=(10,4))
+sns.lineplot(data=data, x=data.index, y='stations_in_service')
+plt.savefig('./output/stations_in_service.png')
 plt.show()
+
+# 分析stations_in_service前700条数据的波动性
+# sample_data = data['stations_in_service'].head(700)
+
+# 计算基本统计量
+# volatility_stats = {
+#     '标准差': sample_data.std(),
+#     '变异系数': sample_data.std() / sample_data.mean(),
+#     '最大波动范围': sample_data.max() - sample_data.min()
+# }
+# print("\nstations_in_service前700条数据的波动性统计：")
+# print(pd.Series(volatility_stats).round(2))
+
+# 绘制时序图和移动平均线
+# plt.figure(figsize=(15, 6))
+# plt.plot(sample_data.index, sample_data, label='ori data')
+# plt.legend()
+# plt.show()
+
+# 验证有无前31条数据的分布一致性
+# full_data = data['stations_in_service']
+# data_without_31 = data['stations_in_service'][31:]
+
+# # 进行K-S检验
+# ks_statistic, p_value = stats.ks_2samp(full_data, data_without_31)
+
+# print("\n有无前31条数据的K-S检验结果：")
+# print(f"KS统计量: {ks_statistic:.4f}")
+# print(f"P值: {p_value:.4f}")
+# print(f"结论: {'数据分布一致' if p_value > 0.05 else '数据分布不一致'}")
+
+# 绘制经验分布函数对比图
+# plt.figure(figsize=(10, 6))
+# plt.step(np.sort(full_data), np.arange(1, len(full_data) + 1) / len(full_data),
+#          label='full data', where='post')
+# plt.step(np.sort(data_without_31), np.arange(1, len(data_without_31) + 1) / len(data_without_31),
+#          label='without 31', where='post')
+# plt.xlabel('站点服务数量')
+# plt.ylabel('累积概率')
+# plt.title('K-S检验：去除前31条数据的分布对比')
+# plt.legend()
+# plt.grid(True)
+# plt.show()
 
 # 降雨量
 # plt.figure(figsize=(15,5))

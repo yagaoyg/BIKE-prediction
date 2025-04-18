@@ -27,7 +27,7 @@ data = pd.read_csv('./data/' + data_name + '.csv',
 
 # 划分训练集和测试集
 train_percentage = 0.7
-test_percentage = 0.85
+test_percentage = 0.8
 train_size = int(len(data) * train_percentage)
 test_size = int(len(data) * test_percentage)
 # test_size = train_size + 42
@@ -74,7 +74,7 @@ def create_dataset(x, y, time_steps=1):
       ys.append(y.iloc[i + time_steps])
   return np.array(xs), np.array(ys)
 
-time_steps = 7
+time_steps = 14
 
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
@@ -92,7 +92,7 @@ input_size = x_train.shape[2]
 criterion = nn.MSELoss()
 
 # 定义批量大小
-batch_size = 128
+batch_size = 64
 
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
