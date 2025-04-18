@@ -61,26 +61,40 @@ plt.savefig('./output/trips of month.png')
 plt.show()
 
 # 数值型特征的统计分析
-# numerical_features = ['trips', 'precipitation', 'snowfall', 'max_t', 'min_t', 'average_wind_speed','stations_in_service','dt']
-# stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
-# print("\n数值型特征的统计分析：")
-# print(stats_df)
+numerical_features = ['precipitation', 'snowfall', 'snow_depth','max_t', 'min_t', 'average_wind_speed','stations_in_service','dt']
+stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
+print("\n数值型特征的统计分析：")
+print(stats_df)
 
 # 绘制数值型特征的分布直方图
-# plt.figure(figsize=(16, 8))
-# for i, feature in enumerate(numerical_features, 1):
-#     plt.subplot(2, 4, i)
-#     sns.histplot(data=data[feature], kde=True)
-#     plt.title(f'{feature}')
-# plt.tight_layout()
-# plt.savefig('./output/' + data_name + '_numerical_features_distribution.png')
-# plt.show()
+plt.figure(figsize=(16, 8))
+for i, feature in enumerate(numerical_features, 1):
+    plt.subplot(2, 4, i)
+    sns.histplot(data=data[feature], kde=True)
+    plt.title(f'{feature}')
+plt.tight_layout()
+plt.savefig('./output/' + data_name + '_numerical_features_distribution.png')
+plt.show()
+
+# 共享自行车用量的分布
+numerical_features = 'trips'
+stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
+print("\n数值型特征的统计分析：")
+print(stats_df)
+
+# 绘制数值型特征的分布直方图
+plt.figure(figsize=(6, 6))
+sns.histplot(data=data[feature], kde=True)
+plt.title(f'{feature}')
+plt.tight_layout()
+plt.savefig('./output/' + data_name + 'trips_distribution.png')
+plt.show()
 
 # 服务中的站点数量
-plt.figure(figsize=(10,4))
-sns.lineplot(data=data, x=data.index, y='stations_in_service')
-plt.savefig('./output/stations_in_service.png')
-plt.show()
+# plt.figure(figsize=(10,4))
+# sns.lineplot(data=data, x=data.index, y='stations_in_service')
+# plt.savefig('./output/stations_in_service.png')
+# plt.show()
 
 # 分析stations_in_service前700条数据的波动性
 # sample_data = data['stations_in_service'].head(700)
@@ -180,13 +194,21 @@ plt.show()
 # 按季节显示骑行次数
 # seasonal_data = data.groupby('season').mean()
 # plt.figure(figsize=(8,4))
-# sns.barplot(data=seasonal_data, x='season', y=seasonal_data.trips,palette='viridis')
+# ax = sns.barplot(data=seasonal_data, x='season', y=seasonal_data.trips,palette='viridis')
+# # 在柱状图上添加数值标注
+# for i in ax.containers:
+#     ax.bar_label(i, fmt='%.0f')
+# plt.savefig('./output/season trips.png')
 # plt.show()
 
 # 按星期显示骑行次数
 # dow_data = data.groupby('dow').mean()
 # plt.figure(figsize=(10,4))
-# sns.barplot(data=dow_data, x='dow', y=dow_data.trips,palette='viridis')
+# ax = sns.barplot(data=dow_data, x='dow', y=dow_data.trips, palette='viridis')
+# # 在柱状图上添加数值标注
+# for i in ax.containers:
+#     ax.bar_label(i, fmt='%.0f')
+# plt.savefig('./output/dow trips.png')
 # plt.show()
 
 # 是否假期与骑行次数的相关性分析

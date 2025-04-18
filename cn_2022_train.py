@@ -35,6 +35,11 @@ train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
 
 # 选取特征
 cols = ['season',
+        'year',
+        'month',
+        'day',
+        'dow',
+        'hour',
         'holiday',
         'workingday',
         'weather',
@@ -129,9 +134,9 @@ hidden_size1 = 144
 hidden_size2 = 96
 dropout1 = 0.4
 dropout2 = 0.3
-epochs = 200
+epochs = 400
 batch_size = 128
-learning_rate = 0.001
+learning_rate = 0.0001
 
 # 创建自定义的LSTM模型
 model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
