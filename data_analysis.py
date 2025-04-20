@@ -84,8 +84,8 @@ print(stats_df)
 
 # 绘制数值型特征的分布直方图
 plt.figure(figsize=(6, 6))
-sns.histplot(data=data[feature], kde=True)
-plt.title(f'{feature}')
+sns.histplot(data=data[numerical_features], kde=True)
+plt.title(f'{numerical_features}')
 plt.tight_layout()
 plt.savefig('./output/' + data_name + 'trips_distribution.png')
 plt.show()
