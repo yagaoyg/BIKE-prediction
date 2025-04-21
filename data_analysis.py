@@ -61,20 +61,20 @@ plt.savefig('./output/trips of month.png')
 plt.show()
 
 # 数值型特征的统计分析
-numerical_features = ['precipitation', 'snowfall', 'snow_depth','max_t', 'min_t', 'average_wind_speed','stations_in_service','dt']
-stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
-print("\n数值型特征的统计分析：")
-print(stats_df)
+# numerical_features = ['precipitation', 'snowfall', 'snow_depth','max_t', 'min_t', 'dt','average_wind_speed','stations_in_service']
+# stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
+# print("\n数值型特征的统计分析：")
+# print(stats_df)
 
 # 绘制数值型特征的分布直方图
-plt.figure(figsize=(16, 8))
-for i, feature in enumerate(numerical_features, 1):
-    plt.subplot(2, 4, i)
-    sns.histplot(data=data[feature], kde=True)
-    plt.title(f'{feature}')
-plt.tight_layout()
-plt.savefig('./output/' + data_name + '_numerical_features_distribution.png')
-plt.show()
+# plt.figure(figsize=(24, 12))
+# for i, feature in enumerate(numerical_features, 1):
+#     plt.subplot(2, 4, i)
+#     sns.histplot(data=data[feature], kde=True)
+#     plt.title(f'{feature}')
+# plt.tight_layout()
+# plt.savefig('./output/' + data_name + '_numerical_features_distribution.png')
+# plt.show()
 
 # 共享自行车用量的分布
 numerical_features = 'trips'
@@ -284,4 +284,60 @@ plt.show()
 # print(f"日期关联强度: {day_strength:.2f}（{'可用' if day_strength > thresholds['极弱关联'] else '建议舍弃'}）")
 # print(f"星期关联强度: {weekday_strength:.2f}（{'可用' if weekday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
 # print(f"假期关联强度: {holiday_strength:.2f}（{'可用' if holiday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
+
+# 分析假期相关特征的分布
+plt.figure(figsize=(15, 5))
+
+# holiday分布及其与trips的关系
+plt.subplot(131)
+sns.boxplot(x='holiday', y='trips', data=data)
+plt.title('Holiday vs Trips')
+
+# weekday分布及其与trips的关系
+plt.subplot(132)
+sns.boxplot(x='weekday', y='trips', data=data)
+plt.title('Weekday vs Trips')
+
+# weekday_non_holiday分布及其与trips的关系
+plt.subplot(133)
+sns.boxplot(x='weekday_non_holiday', y='trips', data=data)
+plt.title('Weekday Non-Holiday vs Trips')
+
+plt.tight_layout()
+plt.savefig('./output/holiday_features_analysis.png')
+plt.show()
+
+# 打印各特征的统计信息
+print("\n各特征的频数统计：")
+print("\nHoliday频数：")
+print(data['holiday'].value_counts())
+print("\nWeekday频数：")
+print(data['weekday'].value_counts())
+print("\nWeekday Non-Holiday频数：")
+print(data['weekday_non_holiday'].value_counts())
+
+# 计算均值统计
+print("\n各特征下的骑行次数均值：")
+print("\nHoliday情况下的平均骑行次数：")
+print(data.groupby('holiday')['trips'].mean())
+print("\nWeekday情况下的平均骑行次数：")
+print(data.groupby('weekday')['trips'].mean())
+print("\nWeekday Non-Holiday情况下的平均骑行次数：")
+print(data.groupby('weekday_non_holiday')['trips'].mean())
+
+# 计算特征占比
+total_days = len(data)
+print("\n各特征在总天数中的占比：")
+
+print("\nHoliday占比：")
+holiday_ratio = (data['holiday'].value_counts() / total_days * 100).round(2)
+print(holiday_ratio.to_string(header=False) + ' %')
+
+print("\nWeekday占比：")
+weekday_ratio = (data['weekday'].value_counts() / total_days * 100).round(2)
+print(weekday_ratio.to_string(header=False) + ' %')
+
+print("\nWeekday Non-Holiday占比：")
+weekday_non_holiday_ratio = (data['weekday_non_holiday'].value_counts() / total_days * 100).round(2)
+print(weekday_non_holiday_ratio.to_string(header=False) + ' %')
 
