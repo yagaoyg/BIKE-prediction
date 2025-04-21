@@ -180,11 +180,12 @@ plt.show()
 # plt.show()
 
 # 分析所有特征与骑行次数的关系
-# corr = data.corr()
-# plt.figure(figsize=(13, 13))
-# sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-# plt.title("heatmap")
-# plt.show()
+corr = data.corr()
+plt.figure(figsize=(15, 15))
+sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+plt.title("heatmap")
+plt.savefig('./output/heatmap.png')
+plt.show()
 
 # 按时间显示运营中的站点数量
 # plt.figure(figsize=(15,5))
@@ -286,22 +287,45 @@ plt.show()
 # print(f"假期关联强度: {holiday_strength:.2f}（{'可用' if holiday_strength > thresholds['极弱关联'] else '建议舍弃'}）")
 
 # 分析假期相关特征的分布
-plt.figure(figsize=(15, 5))
+plt.figure(figsize=(21, 7))
+
+# 计算每个类别的平均值
+holiday_means = data.groupby('holiday')['trips'].mean().round(0)
+weekday_means = data.groupby('weekday')['trips'].mean().round(0)
+weekday_non_holiday_means = data.groupby('weekday_non_holiday')['trips'].mean().round(0)
 
 # holiday分布及其与trips的关系
 plt.subplot(131)
 sns.boxplot(x='holiday', y='trips', data=data)
 plt.title('Holiday vs Trips')
+# 添加均值标注
+for i, value in enumerate(holiday_means):
+    y_pos = data[data['holiday'] == i]['trips'].max() + 1000
+    plt.text(i, y_pos, f'Mean:\n{int(value)}', 
+             horizontalalignment='center', 
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
 
 # weekday分布及其与trips的关系
 plt.subplot(132)
 sns.boxplot(x='weekday', y='trips', data=data)
 plt.title('Weekday vs Trips')
+# 添加均值标注
+for i, value in enumerate(weekday_means):
+    y_pos = data[data['weekday'] == i]['trips'].max() + 1000
+    plt.text(i, y_pos, f'Mean:\n{int(value)}', 
+             horizontalalignment='center',
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
 
 # weekday_non_holiday分布及其与trips的关系
 plt.subplot(133)
 sns.boxplot(x='weekday_non_holiday', y='trips', data=data)
 plt.title('Weekday Non-Holiday vs Trips')
+# 添加均值标注
+for i, value in enumerate(weekday_non_holiday_means):
+    y_pos = data[data['weekday_non_holiday'] == i]['trips'].max() + 1000
+    plt.text(i, y_pos, f'Mean:\n{int(value)}', 
+             horizontalalignment='center',
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
 
 plt.tight_layout()
 plt.savefig('./output/holiday_features_analysis.png')
@@ -340,4 +364,32 @@ print(weekday_ratio.to_string(header=False) + ' %')
 print("\nWeekday Non-Holiday占比：")
 weekday_non_holiday_ratio = (data['weekday_non_holiday'].value_counts() / total_days * 100).round(2)
 print(weekday_non_holiday_ratio.to_string(header=False) + ' %')
+
+# 绘制特征占比饼图
+plt.figure(figsize=(16, 5))
+
+# Holiday占比饼图
+plt.subplot(131)
+holiday_counts = data['holiday'].value_counts()
+plt.pie(holiday_counts, autopct='%1.1f%%', textprops={'color': 'white'})
+plt.title('Holiday Distribution')
+plt.legend(holiday_counts.index, loc='best')
+
+# Weekday占比饼图
+plt.subplot(132)
+weekday_counts = data['weekday'].value_counts()
+plt.pie(weekday_counts, labels=weekday_counts.index, autopct='%1.1f%%', textprops={'color': 'white'})
+plt.title('Weekday Distribution')
+plt.legend(weekday_counts.index, loc='best')
+
+# Weekday Non-Holiday占比饼图
+plt.subplot(133)
+weekday_non_holiday_counts = data['weekday_non_holiday'].value_counts()
+plt.pie(weekday_non_holiday_counts, labels=weekday_non_holiday_counts.index, autopct='%1.1f%%', textprops={'color': 'white'})
+plt.title('Weekday Non-Holiday Distribution')
+plt.legend(weekday_non_holiday_counts.index, loc='best')
+
+plt.tight_layout()
+plt.savefig('./output/holiday_features_pie_charts.png')
+plt.show()
 
