@@ -18,22 +18,22 @@ data_name = 'daily_citi_bike_trip_counts_and_weather'
 data = pd.read_csv('./data/' + data_name + '.csv',
                    parse_dates=['date'],
                    index_col=['date'],
-                  #  usecols=['date',
-                  #           'trips',
-                  #           'precipitation',
-                  #           'snowfall',
-                  #           'max_t',
-                  #           'min_t',
-                  #           'average_wind_speed',
-                  #           'dow',
-                  #           'holiday',
-                  #           'stations_in_service',
-                  #           'weekday',
-                  #           'weekday_non_holiday',
-                  #           'month',
-                  #           'dt',
-                  #           'day',
-                  #           'year']
+                #    usecols=['date',
+                #             'trips',
+                #             'precipitation',
+                #             'snowfall',
+                #             'max_t',
+                #             'min_t',
+                #             'average_wind_speed',
+                #             'dow',
+                #             'holiday',
+                #             'stations_in_service',
+                #             'weekday',
+                #             'weekday_non_holiday',
+                #             'month',
+                #             'dt',
+                #             'day',
+                #             'year']
                    )
 
 # data = pd.read_csv('./data/' + data_name + '.csv',
@@ -181,11 +181,19 @@ plt.show()
 
 # 分析所有特征与骑行次数的关系
 corr = data.corr()
-plt.figure(figsize=(15, 15))
+plt.figure(figsize=(15, 14))
 sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
 plt.title("heatmap")
 plt.savefig('./output/heatmap.png')
 plt.show()
+
+# 分析所有特征与骑行次数的关系2
+# corr = data[['precipitation','snowfall','max_t','min_t','average_wind_speed','dow','holiday','stations_in_service','weekday','weekday_non_holiday','month','dt','day','year','trips']].corr()
+# plt.figure(figsize=(14, 14))
+# sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+# plt.title("heatmap")
+# plt.savefig('./output/heatmap2.png')
+# plt.show()
 
 # 按时间显示运营中的站点数量
 # plt.figure(figsize=(15,5))
@@ -303,7 +311,8 @@ for i, value in enumerate(holiday_means):
     y_pos = data[data['holiday'] == i]['trips'].max() + 1000
     plt.text(i, y_pos, f'Mean:\n{int(value)}', 
              horizontalalignment='center', 
-             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
+             rotation=0)  # 设置水平方向
 
 # weekday分布及其与trips的关系
 plt.subplot(132)
@@ -314,7 +323,8 @@ for i, value in enumerate(weekday_means):
     y_pos = data[data['weekday'] == i]['trips'].max() + 1000
     plt.text(i, y_pos, f'Mean:\n{int(value)}', 
              horizontalalignment='center',
-             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
+             rotation=0)  # 设置水平方向
 
 # weekday_non_holiday分布及其与trips的关系
 plt.subplot(133)
@@ -325,7 +335,8 @@ for i, value in enumerate(weekday_non_holiday_means):
     y_pos = data[data['weekday_non_holiday'] == i]['trips'].max() + 1000
     plt.text(i, y_pos, f'Mean:\n{int(value)}', 
              horizontalalignment='center',
-             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
+             rotation=0)  # 设置水平方向
 
 plt.tight_layout()
 plt.savefig('./output/holiday_features_analysis.png')
@@ -392,4 +403,59 @@ plt.legend(weekday_non_holiday_counts.index, loc='best')
 plt.tight_layout()
 plt.savefig('./output/holiday_features_pie_charts.png')
 plt.show()
+
+# 分析分类变量的非线性关系
+plt.figure(figsize=(24, 6))
+
+# dow的箱线图分析
+plt.subplot(141)
+sns.boxplot(x='dow', y='trips', data=data)
+plt.title('Dow vs Trips (Box Plot)')
+
+# holiday的箱线图分析
+plt.subplot(142)
+sns.boxplot(x='holiday', y='trips', data=data)
+plt.title('Holiday vs Trips (Box Plot)')
+
+# 分析连续变量的非线性关系
+plt.subplot(143)
+sns.regplot(x='day', y='trips', data=data, scatter_kws={'alpha':0.5}, 
+            order=2, line_kws={'color': 'red'})
+plt.title('Day vs Trips (Polynomial Fit)')
+
+plt.subplot(144)
+sns.regplot(x='year', y='trips', data=data, scatter_kws={'alpha':0.5}, 
+            order=2, line_kws={'color': 'red'})
+plt.title('Year vs Trips (Polynomial Fit)')
+
+plt.tight_layout()
+plt.savefig('./output/nonlinear_analysis.png')
+plt.show()
+
+# 计算多项式特征与trips的相关性
+poly = PolynomialFeatures(degree=2, include_bias=False)
+day_poly = poly.fit_transform(data[['day']])
+year_poly = poly.fit_transform(data[['year']])
+
+# 多项式回归
+day_reg = LinearRegression().fit(day_poly, data['trips'])
+year_reg = LinearRegression().fit(year_poly, data['trips'])
+
+print("\n多项式回归R²值：")
+print(f"Day polynomial R²: {day_reg.score(day_poly, data['trips']):.4f}")
+print(f"Year polynomial R²: {year_reg.score(year_poly, data['trips']):.4f}")
+
+# 计算互信息分数
+print("\n互信息分数（反映非线性相关性）：")
+print("互信息强度分级参考：")
+print("0-0.1: 极弱相关或无相关")
+print("0.1-0.3: 弱相关")
+print("0.3-0.5: 中等相关")
+print("0.5-0.8: 强相关")
+print("0.8-1.0: 极强相关")
+print("\n各特征的互信息分数：")
+print(f"Dow MI: {mutual_info_score(data['dow'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+print(f"Holiday MI: {mutual_info_score(data['holiday'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+print(f"Day MI: {mutual_info_score(pd.qcut(data['day'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+print(f"Year MI: {mutual_info_score(pd.qcut(data['year'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
 
