@@ -10,6 +10,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 
 sns.set_style("darkgrid")
+plt.rcParams['font.sans-serif'] = ['SimHei']
     
 data_name = 'daily_citi_bike_trip_counts_and_weather'
 # data_name = 'china_bike_data_2022'
@@ -405,25 +406,25 @@ plt.savefig('./output/holiday_features_pie_charts.png')
 plt.show()
 
 # 分析分类变量的非线性关系
-plt.figure(figsize=(24, 6))
+plt.figure(figsize=(12, 12))
 
 # dow的箱线图分析
-plt.subplot(141)
+plt.subplot(221)
 sns.boxplot(x='dow', y='trips', data=data)
 plt.title('Dow vs Trips (Box Plot)')
 
 # holiday的箱线图分析
-plt.subplot(142)
+plt.subplot(222)
 sns.boxplot(x='holiday', y='trips', data=data)
 plt.title('Holiday vs Trips (Box Plot)')
 
 # 分析连续变量的非线性关系
-plt.subplot(143)
+plt.subplot(223)
 sns.regplot(x='day', y='trips', data=data, scatter_kws={'alpha':0.5}, 
             order=2, line_kws={'color': 'red'})
 plt.title('Day vs Trips (Polynomial Fit)')
 
-plt.subplot(144)
+plt.subplot(224)
 sns.regplot(x='year', y='trips', data=data, scatter_kws={'alpha':0.5}, 
             order=2, line_kws={'color': 'red'})
 plt.title('Year vs Trips (Polynomial Fit)')
@@ -458,4 +459,38 @@ print(f"Dow MI: {mutual_info_score(data['dow'], pd.qcut(data['trips'], q=10, lab
 print(f"Holiday MI: {mutual_info_score(data['holiday'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
 print(f"Day MI: {mutual_info_score(pd.qcut(data['day'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
 print(f"Year MI: {mutual_info_score(pd.qcut(data['year'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+
+# 可视化互信息分数
+plt.figure(figsize=(10, 6))
+mi_scores = {
+    'Dow': mutual_info_score(data['dow'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')),
+    'Holiday': mutual_info_score(data['holiday'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')),
+    'Day': mutual_info_score(pd.qcut(data['day'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')),
+    'Year': mutual_info_score(pd.qcut(data['year'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop'))
+}
+
+# 创建条形图
+plt.figure(figsize=(10, 6))
+bars = plt.bar(range(len(mi_scores)), list(mi_scores.values()), color='skyblue')
+plt.xticks(range(len(mi_scores)), list(mi_scores.keys()))
+plt.title('Mutual Information Scores with Trips')
+plt.ylabel('MI Score')
+
+# 在柱状图上添加具体数值
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height,
+             f'{height:.4f}',
+             ha='center', va='bottom')
+
+# 添加参考线
+plt.axhline(y=0.1, color='r', linestyle='--', alpha=0.3, label='极弱相关阈值(0.1)')
+plt.axhline(y=0.3, color='g', linestyle='--', alpha=0.3, label='弱相关阈值(0.3)')
+plt.axhline(y=0.5, color='b', linestyle='--', alpha=0.3, label='中等相关阈值(0.5)')
+plt.axhline(y=0.8, color='purple', linestyle='--', alpha=0.3, label='强相关阈值(0.8)')
+
+plt.legend()
+plt.tight_layout()
+plt.savefig('./output/mutual_information_scores.png')
+plt.show()
 

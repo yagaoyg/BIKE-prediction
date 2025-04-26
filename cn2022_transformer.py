@@ -22,6 +22,30 @@ np.random.seed(42)  # 设置 NumPy 随机种子
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 检测是否有 GPU 可用
 print(f"Using device: {device}")  # 打印使用的设备信息
 
+# 全局配置参数
+CONFIG = {
+    'feature_cols': [
+        'season', 'year', 'month', 'day', 'dow', 'hour',
+        'holiday', 'workingday', 'weather', 'temp',
+        'atemp', 'humidity', 'windspeed'
+    ],
+    'target_col': 'count',
+    'time_steps': 12,
+    'batch_size': 32,
+    'train_epochs': 200,
+    'tuning_epochs': 50,  # 调优时使用较少的轮数
+    'train_split': 0.7,
+    'val_split': 0.8,
+    'model_params': {
+        'd_model': 128,
+        'num_heads': 4,
+        'ff_dim': 128,
+        'num_layers': 2,
+        'dropout': 0.4,
+        'learning_rate': 1e-5
+    }
+}
+
 class BikeDataset(Dataset):
     """
     自定义数据集类，用于处理时间序列数据。
@@ -230,43 +254,33 @@ def objective(trial):
     
     # 数据准备
     df = process_data('./data/china_bike_data_2022.csv')
-    feature_cols = [
-        'season',
-        'holiday',
-        'workingday',
-        'weather',
-        'temp',
-        'atemp',
-        'humidity',
-        'windspeed'
-    ]
+    
+    # 使用全局配置的特征
     scaler = RobustScaler()
-    df[feature_cols] = scaler.fit_transform(df[feature_cols])
+    df[CONFIG['feature_cols']] = scaler.fit_transform(df[CONFIG['feature_cols']])
     target_scaler = RobustScaler()
-    df['count'] = target_scaler.fit_transform(df[['count']])
+    df[CONFIG['target_col']] = target_scaler.fit_transform(df[[CONFIG['target_col']]])
     
-    TIME_STEPS = 12
-    BATCH_SIZE = 32
-    NUM_EPOCHS = 50  # 调优时减少训练轮数以加快速度
-    dataset = BikeDataset(df, feature_cols, 'count', TIME_STEPS)
+    # 使用全局配置的参数
+    dataset = BikeDataset(df, CONFIG['feature_cols'], CONFIG['target_col'], CONFIG['time_steps'])
     
-    train_size = int(0.7 * len(dataset))
-    val_size = int(0.8 * len(dataset))
+    train_size = int(CONFIG['train_split'] * len(dataset))
+    val_size = int(CONFIG['val_split'] * len(dataset))
     
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))
     val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
     # 模型初始化
     model = ImprovedTransformer(
-        input_dim=len(feature_cols),
+        input_dim=len(CONFIG['feature_cols']),
         d_model=d_model,
         num_heads=num_heads,
         ff_dim=ff_dim,
         num_layers=num_layers,
         dropout=dropout,
-        time_steps=TIME_STEPS
+        time_steps=CONFIG['time_steps']
     ).to(device)
     
     # 优化配置
@@ -278,7 +292,7 @@ def objective(trial):
     # 训练模型
     train_losses, val_losses, train_rmse, val_rmse = train_and_evaluate(
         model, train_loader, val_loader, criterion, optimizer, scheduler,
-        NUM_EPOCHS, device)
+        CONFIG['tuning_epochs'], device)
     
     # 返回验证集的最终 RMSE 作为目标值
     return val_rmse[-1]
@@ -288,91 +302,60 @@ def main():
     主函数，执行超参数调优和模型训练。
     """
     # 使用 Optuna 进行超参数调优
-    # study = optuna.create_study(direction="minimize")
-    # study.optimize(objective, n_trials=10)  # 运行 10 次实验
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=10)
     
-    # 输出最佳超参数
-    # print("Best hyperparameters:", study.best_params)
+    print("Best hyperparameters:", study.best_params)
     
-    # 使用最佳超参数重新训练模型
-    # best_params = study.best_params
-    # d_model = best_params["d_model"]
-    # num_heads = best_params["num_heads"]
-    # ff_dim = best_params["ff_dim"]
-    # num_layers = best_params["num_layers"]
-    # dropout = best_params["dropout"]
-    # learning_rate = best_params["learning_rate"]
-    
-    d_model = 128
-    num_heads = 4
-    ff_dim = 128
-    num_layers = 2
-    dropout = 0.4
-    learning_rate = 1e-5
+    # 更新配置参数为最佳参数
+    best_params = {
+        'd_model': study.best_params['d_model'],
+        'num_heads': study.best_params['num_heads'],
+        'ff_dim': study.best_params['ff_dim'],
+        'num_layers': study.best_params['num_layers'],
+        'dropout': study.best_params['dropout']
+    }
+    CONFIG['model_params'].update(best_params)
     
     # 数据准备
     df = process_data('./data/china_bike_data_2022.csv')
     
-    # 特征选择
-    feature_cols = [
-        'season',
-        'holiday',
-        'workingday',
-        'weather',
-        'temp',
-        'atemp',
-        'humidity',
-        'windspeed'
-    ]
-
-    # 数据标准化
+    # 使用全局配置的特征和参数
     scaler = RobustScaler()
-    df[feature_cols] = scaler.fit_transform(df[feature_cols])
+    df[CONFIG['feature_cols']] = scaler.fit_transform(df[CONFIG['feature_cols']])
     target_scaler = RobustScaler()
-    df['count'] = target_scaler.fit_transform(df[['count']])
-    
-    # 模型参数
-    TIME_STEPS = 7
-    BATCH_SIZE = 32
-    NUM_EPOCHS = 200
+    df[CONFIG['target_col']] = target_scaler.fit_transform(df[[CONFIG['target_col']]])
     
     # 创建数据集
-    dataset = BikeDataset(df, feature_cols, 'count', TIME_STEPS)
-    train_size = int(0.5 * len(dataset))
-    test_size = int(0.6 * len(dataset))
+    dataset = BikeDataset(df, CONFIG['feature_cols'], CONFIG['target_col'], CONFIG['time_steps'])
+    train_size = int(CONFIG['train_split'] * len(dataset))
+    val_size = int(CONFIG['val_split'] * len(dataset))
     
-    # 方式 2：按时间顺序分割
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))
-    val_dataset = torch.utils.data.Subset(dataset, range(train_size, test_size))
+    val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
     
-    # 注意：只在训练集使用 shuffle=True
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, 
-                            shuffle=False)  # 训练集是否打乱由 SHUFFLE_SPLIT 控制
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, 
-                          shuffle=False)  # 验证集永远不打乱
+    train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
-    # 模型初始化
+    # 使用配置参数初始化模型，移除 learning_rate
+    model_params = CONFIG['model_params'].copy()
+    learning_rate = model_params.pop('learning_rate')  # 从模型参数中移除 learning_rate
+    
     model = ImprovedTransformer(
-        input_dim=len(feature_cols),
-        d_model=d_model,
-        num_heads=num_heads,
-        ff_dim=ff_dim,
-        num_layers=num_layers,
-        dropout=dropout,
-        time_steps=TIME_STEPS
+        input_dim=len(CONFIG['feature_cols']),
+        time_steps=CONFIG['time_steps'],
+        **model_params  # 不包含 learning_rate 的模型参数
     ).to(device)
     
     # 训练配置
     criterion = nn.HuberLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-                                                   factor=0.5, patience=10, 
-                                                   verbose=True)
+    optimizer = optim.AdamW(model.parameters(), lr=study.best_params['learning_rate'], weight_decay=0.01)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
     
     # 训练模型
     train_losses, val_losses, train_rmse, val_rmse = train_and_evaluate(
         model, train_loader, val_loader, criterion, optimizer, scheduler,
-        NUM_EPOCHS, device)
+        CONFIG['train_epochs'], device)
     
     # 保存结果
     save_dir = f'./model/{datetime.now().strftime("%Y-%m-%d %H-%M-%S")}'
@@ -442,8 +425,8 @@ def main():
     torch.save({
         'feature_scaler': scaler,
         'target_scaler': target_scaler,
-        'feature_cols': feature_cols,
-        'time_steps': TIME_STEPS
+        'feature_cols': CONFIG['feature_cols'],
+        'time_steps': CONFIG['time_steps']
     }, f'{save_dir}/model_config.pth')
 
 if __name__ == "__main__":
