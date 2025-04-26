@@ -40,12 +40,13 @@ CONFIG = {
         'season'
     ],
     'target_col': 'trips',
-    'time_steps': 7,  # 时间步长
+    'time_steps': 1,  # 时间步长
     'batch_size': 64,
     'train_epochs': 200,
     'tuning_epochs': 50,
-    'train_split': 0.7,
-    'val_split': 0.8,
+    'train_split': 0.7,     # 训练集比例 0-70%
+    'val_split': 0.8,       # 验证集比例 70-80%
+    'test_split': 0.9,      # 测试集比例 80-90%
     'model_params': {
         'd_model': 128,
         'num_heads': 4,
@@ -275,11 +276,15 @@ def objective(trial):
     dataset = BikeDataset(df, CONFIG['feature_cols'], CONFIG['target_col'], CONFIG['time_steps'])
     train_size = int(CONFIG['train_split'] * len(dataset))
     val_size = int(CONFIG['val_split'] * len(dataset))
+    test_size = int(CONFIG['test_split'] * len(dataset))
     
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))
     val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
+    test_dataset = torch.utils.data.Subset(dataset, range(val_size, test_size))
+    
     train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
     # 模型初始化
     model = ImprovedTransformer(
@@ -340,12 +345,15 @@ def main():
     dataset = BikeDataset(df, CONFIG['feature_cols'], CONFIG['target_col'], CONFIG['time_steps'])
     train_size = int(CONFIG['train_split'] * len(dataset))
     val_size = int(CONFIG['val_split'] * len(dataset))
+    test_size = int(CONFIG['test_split'] * len(dataset))
     
     train_dataset = torch.utils.data.Subset(dataset, range(train_size))
     val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
+    test_dataset = torch.utils.data.Subset(dataset, range(val_size, test_size))
     
     train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
     # 使用配置参数初始化模型
     model_params = CONFIG['model_params'].copy()
@@ -440,6 +448,51 @@ def main():
         'feature_cols': CONFIG['feature_cols'],
         'time_steps': CONFIG['time_steps']
     }, f'{save_dir}/model_config.pth')
+
+    # 在测试集上进行预测和评估
+    print("\n开始测试集评估...")
+    model.eval()
+    test_loss = 0
+    test_preds = []
+    test_trues = []
+    
+    with torch.no_grad():
+        for batch_X, batch_y in test_loader:
+            batch_X = batch_X.to(device)
+            outputs, attention_scores = model(batch_X)  # 获取注意力权重
+            outputs = outputs.squeeze()  # 确保输出维度正确
+            test_preds.extend(outputs.cpu().numpy())
+            test_trues.extend(batch_y.numpy())
+            
+    # 转换为 numpy 数组并重塑
+    test_preds = np.array(test_preds).reshape(-1, 1)
+    test_trues = np.array(test_trues).reshape(-1, 1)
+    
+    test_loss /= len(test_loader)
+    test_preds = target_scaler.inverse_transform(np.array(test_preds))
+    test_trues = target_scaler.inverse_transform(np.array(test_trues))
+    
+    # 计算测试集评估指标
+    rmse_test = np.sqrt(mean_squared_error(test_trues, test_preds))
+    mape_test = np.mean(np.abs((test_trues - test_preds) / test_trues)) * 100
+    wape_test = np.sum(np.abs(test_trues - test_preds)) / np.sum(np.abs(test_trues)) * 100
+    r2_test = r2_score(test_trues, test_preds)
+    
+    print(f"\n测试集性能评估:")
+    print(f"Test Loss: {test_loss:.6f}")
+    print(f"RMSE: {rmse_test:.4f}")
+    print(f"MAPE: {mape_test:.2f}%")
+    print(f"WAPE: {wape_test:.2f}%")
+    print(f"R²: {r2_test:.4f}")
+    
+    # 绘制测试集预测结果
+    plt.figure(figsize=(12, 4))
+    plt.plot(test_trues, label='True Values', marker='.', alpha=0.7)
+    plt.plot(test_preds, label='Predictions', marker='.', alpha=0.7)
+    plt.title(f'Test Set Predictions\nRMSE={rmse_test:.2f}, MAPE={mape_test:.2f}%, WAPE={wape_test:.2f}%, R²={r2_test:.4f}')
+    plt.legend()
+    plt.savefig(f'{save_dir}/test_results.png')
+    plt.show()
 
 if __name__ == "__main__":
     main()

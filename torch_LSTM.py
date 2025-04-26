@@ -25,13 +25,16 @@ data = pd.read_csv('./data/' + data_name + '.csv',
                    parse_dates=['date'],
                    index_col=['date'])
 
-# 划分训练集和测试集
+# 划分训练集、验证集和测试集
 train_percentage = 0.7
-test_percentage = 0.8
+val_percentage = 0.8
+test_percentage = 0.9
 train_size = int(len(data) * train_percentage)
+val_size = int(len(data) * val_percentage)
 test_size = int(len(data) * test_percentage)
-# pred_size = train_size + 63
-train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
+train_data = data.iloc[0:train_size]
+val_data = data.iloc[train_size:val_size]
+test_data = data.iloc[val_size:test_size]
 
 # 选取特征
 cols = [
@@ -56,6 +59,7 @@ transformer = RobustScaler()
 transformer = transformer.fit(train_data[cols].to_numpy())
 
 train_data.loc[:, cols] = transformer.transform(train_data[cols].to_numpy())
+val_data.loc[:, cols] = transformer.transform(val_data[cols].to_numpy())
 test_data.loc[:, cols] = transformer.transform(test_data[cols].to_numpy())
 
 # 目标量标准化
@@ -63,6 +67,7 @@ trips_transformer = RobustScaler()
 trips_transformer = trips_transformer.fit(train_data[['trips']])
 
 train_data.loc[:, 'trips'] = trips_transformer.transform(train_data[['trips']])
+val_data.loc[:, 'trips'] = trips_transformer.transform(val_data[['trips']])
 test_data.loc[:, 'trips'] = trips_transformer.transform(test_data[['trips']])
 
 
@@ -75,14 +80,17 @@ def create_dataset(x, y, time_steps=1):
       ys.append(y.iloc[i + time_steps])
   return np.array(xs), np.array(ys)
 
-time_steps = 7
+time_steps = 1
 
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
+x_val, y_val = create_dataset(val_data, val_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
 
 # 转换为 PyTorch Tensor
 x_train = torch.tensor(x_train, dtype=torch.float32).to(device)
 y_train = torch.tensor(y_train, dtype=torch.float32).to(device)
+x_val = torch.tensor(x_val, dtype=torch.float32).to(device)
+y_val = torch.tensor(y_val, dtype=torch.float32).to(device)
 x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
 y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 
@@ -167,8 +175,8 @@ def objective(trial):
         # 验证集上的损失
         model.eval()
         with torch.no_grad():
-            val_outputs = model(x_test)
-            val_loss = criterion(val_outputs.squeeze(), y_test)
+            val_outputs = model(x_val)
+            val_loss = criterion(val_outputs.squeeze(), y_val)
         
         # 更新最佳验证损失
         if val_loss.item() < best_val_loss:
@@ -177,19 +185,26 @@ def objective(trial):
     return best_val_loss
 
 # 使用 optuna 进行超参数调优
-study = optuna.create_study(direction='minimize')
-study.optimize(objective, n_trials=20)  # 设置调优的试验次数
+# study = optuna.create_study(direction='minimize')
+# study.optimize(objective, n_trials=20)  # 设置调优的试验次数
 
 # 获取最佳超参数
-best_params = study.best_params
-hidden_size1 = best_params['hidden_size1']
-hidden_size2 = best_params['hidden_size2']
-dropout1 = best_params['dropout1']
-dropout2 = best_params['dropout2']
-learning_rate = best_params['learning_rate']
+# best_params = study.best_params
+# hidden_size1 = best_params['hidden_size1']
+# hidden_size2 = best_params['hidden_size2']
+# dropout1 = best_params['dropout1']
+# dropout2 = best_params['dropout2']
+# learning_rate = best_params['learning_rate']
+
+# 手动设置参数
+hidden_size1 = 128
+hidden_size2 = 80
+dropout1 = 0.4
+dropout2 = 0.3
+learning_rate = 0.0001
 
 # 输出最佳超参数
-print("Best hyperparameters:", best_params)
+# print("Best hyperparameters:", best_params)
 
 # 使用最佳超参数创建最终模型
 model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
@@ -200,9 +215,10 @@ train_losses, val_losses = [], []
 best_val_loss = float('inf')
 best_epoch = 0
 
-# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=20, verbose=True)
+epochs = 4000  # 设置训练轮数
 
-for epoch in range(2000):
+# 训练模型
+for epoch in range(epochs):
   model.train()
   optimizer.zero_grad()
 
@@ -217,8 +233,8 @@ for epoch in range(2000):
   # 验证集上的损失
   model.eval()
   with torch.no_grad():
-    val_outputs = model(x_test)
-    val_loss = criterion(val_outputs.squeeze(), y_test)
+    val_outputs = model(x_val)
+    val_loss = criterion(val_outputs.squeeze(), y_val)
 
   train_losses.append(loss.item())
   val_losses.append(val_loss.item())
@@ -233,7 +249,7 @@ for epoch in range(2000):
     print(f'Epoch [{epoch+1}/2000], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
 # 加载最佳模型
-model.load_state_dict(torch.load(temp_path))
+# model.load_state_dict(torch.load(temp_path))
 
 # 记录结束时间
 end_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
@@ -252,6 +268,7 @@ plt.show()
 model.eval()
 with torch.no_grad():
   y_pred = model(x_test).cpu().numpy()
+  # y_pred = model(x_val).cpu().numpy()
 
 # 反标准化预测值和真实值
 y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1, -1))

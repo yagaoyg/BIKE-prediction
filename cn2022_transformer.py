@@ -34,8 +34,8 @@ CONFIG = {
     'batch_size': 32,
     'train_epochs': 200,
     'tuning_epochs': 50,  # 调优时使用较少的轮数
-    'train_split': 0.7,
-    'val_split': 0.8,
+    'train_split': 0.5,
+    'val_split': 0.6,
     'model_params': {
         'd_model': 128,
         'num_heads': 4,

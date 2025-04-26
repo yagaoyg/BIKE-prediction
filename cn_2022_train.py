@@ -27,10 +27,16 @@ data = pd.read_csv('./data/' + data_name + '.csv',
 # print(data.head())
 
 train_percentage = 0.5
-test_percentage = 0.6
+val_percentage = 0.6
+test_percentage = 0.7
+
 train_size = int(len(data) * train_percentage)
+val_size = int(len(data) * val_percentage)
 test_size = int(len(data) * test_percentage)
-train_data, test_data = data.iloc[0:train_size], data.iloc[train_size:test_size]
+
+train_data = data.iloc[0:train_size]
+val_data = data.iloc[train_size:val_size]
+test_data = data.iloc[val_size:test_size]
 # print(len(train_data), len(test_data))
 
 # 选取特征
@@ -53,6 +59,7 @@ transformer = RobustScaler()
 transformer = transformer.fit(train_data[cols].to_numpy())
 
 train_data.loc[:, cols] = transformer.transform(train_data[cols].to_numpy())
+val_data.loc[:, cols] = transformer.transform(val_data[cols].to_numpy())
 test_data.loc[:, cols] = transformer.transform(test_data[cols].to_numpy())
 
 # 目标量标准化
@@ -60,6 +67,7 @@ count_transformer = RobustScaler()
 count_transformer = count_transformer.fit(train_data[['count']])
 
 train_data.loc[:, 'count'] = count_transformer.transform(train_data[['count']])
+val_data.loc[:, 'count'] = count_transformer.transform(val_data[['count']])
 test_data.loc[:, 'count'] = count_transformer.transform(test_data[['count']])
 
 # 将输入的时序数据 x 和标签 y 转换成适合 LSTM 模型训练的数据格式
@@ -74,11 +82,14 @@ def create_dataset(x, y, time_steps=1):
 time_steps = 24  # 24小时的时间步长
 
 x_train, y_train = create_dataset(train_data, train_data['count'], time_steps)
+x_val, y_val = create_dataset(val_data, val_data['count'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['count'], time_steps)
 
 # 转换为 PyTorch Tensor
 x_train = torch.tensor(x_train, dtype=torch.float32).to(device)
 y_train = torch.tensor(y_train, dtype=torch.float32).to(device)
+x_val = torch.tensor(x_val, dtype=torch.float32).to(device)
+y_val = torch.tensor(y_val, dtype=torch.float32).to(device)
 x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
 y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 
@@ -164,8 +175,8 @@ for epoch in range(epochs):
   # 验证集上的损失
   model.eval()
   with torch.no_grad():
-    val_outputs = model(x_test)
-    val_loss = criterion(val_outputs.squeeze(), y_test)
+    val_outputs = model(x_val)
+    val_loss = criterion(val_outputs.squeeze(), y_val)
 
   train_losses.append(loss.item())
   val_losses.append(val_loss.item())
@@ -197,44 +208,45 @@ plt.savefig(base_path +'/loss ' + str(best_val_loss) + '.png')
 plt.show()
 
 # 在测试集上进行预测
+print("\n开始测试集评估...")
 model.eval()
 with torch.no_grad():
-  y_pred = model(x_test).cpu().numpy()
+    test_outputs = model(x_test)
+    test_loss = criterion(test_outputs.squeeze(), y_test)
+    print(f'\nTest Loss: {test_loss.item():.6f}')
 
-# 反标准化预测值和真实值
-y_pred_inv = count_transformer.inverse_transform(y_pred.reshape(1, -1))
-y_test_inv = count_transformer.inverse_transform(y_test.cpu().numpy().reshape(1, -1))
+# 对测试集预测结果进行反标准化处理
+test_preds = test_outputs.cpu().numpy()
+test_preds = count_transformer.inverse_transform(test_preds.reshape(1, -1))
+test_trues = y_test.cpu().numpy()
+test_trues = count_transformer.inverse_transform(test_trues.reshape(1, -1))
 
-# 计算均方根误差
-rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv.flatten(), y_pred_inv.flatten())), 6)
+# 计算测试集评估指标
+rmse_test = round(np.sqrt(mean_squared_error(test_trues.flatten(), test_preds.flatten())), 6)
+mape_test = round(np.mean(np.abs((test_trues.flatten() - test_preds.flatten()) / test_trues.flatten())) * 100, 2)
+wape_test = round(np.sum(np.abs(test_trues.flatten() - test_preds.flatten())) / np.sum(np.abs(test_trues.flatten())) * 100, 2)
+r2_test = round(r2_score(test_trues.flatten(), test_preds.flatten()), 6)
 
-# 计算平均绝对百分比误差（MAPE）
-mape_lstm = round(np.mean(np.abs((y_test_inv.flatten() - y_pred_inv.flatten()) / y_test_inv.flatten())) * 100, 2)
+print(f"\n测试集性能评估:")
+print(f"RMSE: {rmse_test}")
+print(f"MAPE: {mape_test}%")
+print(f"WAPE: {wape_test}%")
+print(f"R²: {r2_test}")
 
-# 计算加权平均百分比误差（WAPE）
-wape_lstm = round(np.sum(np.abs(y_test_inv.flatten() - y_pred_inv.flatten())) / np.sum(np.abs(y_test_inv.flatten())) * 100, 2)
-
-# 计算决定系数（R²）
-r2_lstm = round(r2_score(y_test_inv.flatten(), y_pred_inv.flatten()), 6)
-
-print(f"RMSE: {rmse_lstm}")
-print(f"MAPE: {mape_lstm}%")
-print(f"WAPE: {wape_lstm}%")
-print(f"R²: {r2_lstm}")
-
-# 绘制预测结果
+# 绘制测试集预测结果对比图
 plt.figure(figsize=(12, 4))
-plt.plot(y_test_inv.flatten(), marker='.', label="true")
-plt.plot(y_pred_inv.flatten(), marker='.', label="pred")
-plt.title(f'LSTM Prediction RMSE: {rmse_lstm}, MAPE: {mape_lstm}%, WAPE: {wape_lstm}%, R²: {r2_lstm}')
+plt.plot(test_trues.flatten(), marker='.', label="true")
+plt.plot(test_preds.flatten(), marker='.', label="pred")
+plt.title(f'Test Set Prediction\nRMSE: {rmse_test}, MAPE: {mape_test}%, WAPE: {wape_test}%, R²: {r2_test}')
 plt.legend()
-plt.savefig(base_path + f'{rmse_lstm}_LSTM.png')
+plt.savefig(base_path + f'/test_prediction_{rmse_test}.png')
 plt.show()
 
+# 保存模型和数据记录
 torch.save(model.state_dict(), base_path + 'bike_pred_model.pth')
 
 # 记录数据指标
-new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_lstm,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
+new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_test,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
 save_data = train_df._append(new_df)
 save_data.to_excel('train.xlsx',index=False)
 print('数据记录完成')
