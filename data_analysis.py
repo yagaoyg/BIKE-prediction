@@ -494,3 +494,52 @@ plt.tight_layout()
 plt.savefig('./output/mutual_information_scores.png')
 plt.show()
 
+# 分析所有特征的互信息分数
+def calculate_mutual_info(data, feature, target='trips'):
+    if data[feature].dtype in ['int64', 'float64']:
+        # 对连续型变量进行分箱处理
+        feature_binned = pd.qcut(data[feature], q=10, labels=False, duplicates='drop')
+    else:
+        feature_binned = data[feature]
+    
+    target_binned = pd.qcut(data[target], q=10, labels=False, duplicates='drop')
+    return mutual_info_score(feature_binned, target_binned)
+
+# 计算所有特征的互信息分数
+mi_scores = {}
+for feature in data.columns:
+    if feature != 'trips':
+        mi_scores[feature] = calculate_mutual_info(data, feature)
+
+# 将互信息分数转换为DataFrame并排序
+mi_df = pd.DataFrame(mi_scores.items(), columns=['Feature', 'MI_Score'])
+mi_df = mi_df.sort_values('MI_Score', ascending=False)
+
+# 绘制所有特征的互信息分数条形图
+plt.figure(figsize=(12, 6))
+bars = plt.bar(range(len(mi_df)), mi_df['MI_Score'], color='skyblue')
+plt.xticks(range(len(mi_df)), mi_df['Feature'], rotation=45, ha='right')
+plt.title('所有特征与骑行次数的互信息分数')
+plt.ylabel('互信息分数')
+
+# 在柱状图上添加具体数值
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height,
+             f'{height:.4f}',
+             ha='center', va='bottom')
+
+# 添加参考线
+plt.axhline(y=0.1, color='r', linestyle='--', alpha=0.3, label='极弱相关(0.1)')
+plt.axhline(y=0.3, color='g', linestyle='--', alpha=0.3, label='弱相关(0.3)')
+plt.axhline(y=0.5, color='b', linestyle='--', alpha=0.3, label='中等相关(0.5)')
+plt.axhline(y=0.8, color='purple', linestyle='--', alpha=0.3, label='强相关(0.8)')
+
+plt.legend()
+plt.tight_layout()
+plt.savefig('./output/all_features_mutual_information.png')
+plt.show()
+
+# 打印互信息分数表格
+print("\n所有特征与骑行次数的互信息分数（按分数降序排列）：")
+print(mi_df.to_string(index=False))

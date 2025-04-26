@@ -40,7 +40,7 @@ CONFIG = {
         'season'
     ],
     'target_col': 'trips',
-    'time_steps': 1,
+    'time_steps': 7,  # 时间步长
     'batch_size': 64,
     'train_epochs': 200,
     'tuning_epochs': 50,
