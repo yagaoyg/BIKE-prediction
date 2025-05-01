@@ -80,6 +80,7 @@ def create_dataset(x, y, time_steps=1):
   return np.array(xs), np.array(ys)
 
 time_steps = 24  # 24小时的时间步长
+batch_size = 64
 
 x_train, y_train = create_dataset(train_data, train_data['count'], time_steps)
 x_val, y_val = create_dataset(val_data, val_data['count'], time_steps)
@@ -92,6 +93,13 @@ x_val = torch.tensor(x_val, dtype=torch.float32).to(device)
 y_val = torch.tensor(y_val, dtype=torch.float32).to(device)
 x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
 y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
+
+# 创建数据加载器
+train_dataset = torch.utils.data.TensorDataset(x_train, y_train)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+val_dataset = torch.utils.data.TensorDataset(x_val, y_val)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size)
 
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
@@ -116,9 +124,9 @@ start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 class MYLSTMModel(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
     super(MYLSTMModel, self).__init__()
-    self.conv1 = nn.Conv1d(input_size, 64, kernel_size=3, padding=1)
-    self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
-    self.lstm1 = nn.LSTM(128, hidden_size1, batch_first=True, bidirectional=True)
+    self.conv1 = nn.Conv1d(input_size, 48, kernel_size=3, padding=1)
+    self.conv2 = nn.Conv1d(48, 64, kernel_size=3, padding=1)
+    self.lstm1 = nn.LSTM(64, hidden_size1, batch_first=True, bidirectional=True)
     self.dropout1 = nn.Dropout(dropout1)
     self.lstm2 = nn.LSTM(hidden_size1 * 2, hidden_size2, batch_first=True, bidirectional=True)
     self.dropout2 = nn.Dropout(dropout2)
@@ -141,12 +149,11 @@ class MYLSTMModel(nn.Module):
 
 # 设置超参数
 input_size = x_train.shape[2]
-hidden_size1 = 144
-hidden_size2 = 96
+hidden_size1 = 128
+hidden_size2 = 80
 dropout1 = 0.4
 dropout2 = 0.3
-epochs = 400
-batch_size = 128
+epochs = 100
 learning_rate = 0.0001
 
 # 创建自定义的LSTM模型
@@ -161,35 +168,45 @@ train_losses, val_losses = [], []
 best_val_loss = float('inf')
 
 for epoch in range(epochs):
-  model.train()
-  optimizer.zero_grad()
+    model.train()
+    train_loss = 0
+    
+    # 批处理训练
+    for batch_x, batch_y in train_loader:
+        optimizer.zero_grad()
+        outputs = model(batch_x)
+        loss = criterion(outputs.squeeze(), batch_y)
+        loss.backward()
+        optimizer.step()
+        train_loss += loss.item()
+            
+    # 计算平均训练损失
+    train_loss = train_loss / len(train_loader)
+    
+    # 验证
+    model.eval()
+    val_loss = 0
+    with torch.no_grad():
+        for batch_x, batch_y in val_loader:
+            val_outputs = model(batch_x)
+            batch_loss = criterion(val_outputs.squeeze(), batch_y)
+            val_loss += batch_loss.item()
+    
+    # 计算平均验证损失
+    val_loss = val_loss / len(val_loader)
+    
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+    
+      # 保存最佳模型
+    if val_loss < best_val_loss:
+      best_val_loss = val_loss
+      best_epoch = epoch + 1
+      torch.save(model.state_dict(), temp_path)
+      trigger_times = 0
 
-  # 前向传播
-  outputs = model(x_train)
-  loss = criterion(outputs.squeeze(), y_train)
-
-  # 反向传播和优化
-  loss.backward()
-  optimizer.step()
-
-  # 验证集上的损失
-  model.eval()
-  with torch.no_grad():
-    val_outputs = model(x_val)
-    val_loss = criterion(val_outputs.squeeze(), y_val)
-
-  train_losses.append(loss.item())
-  val_losses.append(val_loss.item())
-
-  # 保存最佳模型
-  if val_loss.item() < best_val_loss:
-    best_val_loss = val_loss.item()
-    best_epoch = epoch + 1
-    torch.save(model.state_dict(), temp_path)
-    trigger_times = 0
-
-  if (epoch + 1) % 10 == 0:
-    print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+    if (epoch + 1) % 10 == 0:
+      print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}')
 
 # 加载最佳模型
 model.load_state_dict(torch.load(temp_path))

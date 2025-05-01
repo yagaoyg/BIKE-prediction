@@ -126,9 +126,9 @@ start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 class MYLSTMModel(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, dropout1, dropout2):
     super(MYLSTMModel, self).__init__()
-    self.conv1 = nn.Conv1d(input_size, 32, kernel_size=3, padding=1)
-    self.conv2 = nn.Conv1d(32, 48, kernel_size=3, padding=1)
-    self.lstm1 = nn.LSTM(48, hidden_size1, batch_first=True, bidirectional=True)
+    self.conv1 = nn.Conv1d(input_size, 48, kernel_size=3, padding=1)
+    self.conv2 = nn.Conv1d(48, 64, kernel_size=3, padding=1)
+    self.lstm1 = nn.LSTM(64, hidden_size1, batch_first=True, bidirectional=True)
     self.dropout1 = nn.Dropout(dropout1)
     self.lstm2 = nn.LSTM(hidden_size1 * 2, hidden_size2, batch_first=True, bidirectional=True)
     self.dropout2 = nn.Dropout(dropout2)
@@ -151,11 +151,11 @@ class MYLSTMModel(nn.Module):
 # 定义目标函数，用于 optuna 调优
 def objective(trial):
     # 定义超参数搜索空间
-    hidden_size1 = trial.suggest_int('hidden_size1', 64, 256, step=32)
+    hidden_size1 = trial.suggest_int('hidden_size1', 64, 256, step=16)
     hidden_size2 = trial.suggest_int('hidden_size2', 32, 128, step=16)
-    dropout1 = trial.suggest_float('dropout1', 0.1, 0.5, step=0.1)
-    dropout2 = trial.suggest_float('dropout2', 0.1, 0.5, step=0.1)
-    learning_rate = trial.suggest_loguniform('learning_rate', 1e-4, 1e-2)
+    dropout1 = trial.suggest_float('dropout1', 0.1, 0.5, step=0.05)
+    dropout2 = trial.suggest_float('dropout2', 0.1, 0.5, step=0.05)
+    learning_rate = trial.suggest_loguniform('learning_rate', 1e-4, 1e-3)
     
     # 创建模型
     model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
@@ -163,32 +163,31 @@ def objective(trial):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
     
     # 训练模型
-    best_val_loss = float('inf')
-    for epoch in range(50):  # 限制训练轮数以加速调优
-        model.train()
-        optimizer.zero_grad()
-        outputs = model(x_train)
-        loss = criterion(outputs.squeeze(), y_train)
-        loss.backward()
-        optimizer.step()
-        
-        # 验证集上的损失
-        model.eval()
-        with torch.no_grad():
-            val_outputs = model(x_val)
-            val_loss = criterion(val_outputs.squeeze(), y_val)
-        
-        # 更新最佳验证损失
-        if val_loss.item() < best_val_loss:
-            best_val_loss = val_loss.item()
+    final_val_loss = float('inf')
+    for epoch in range(800):  # 限制训练轮数以加速调优
+      model.train()
+      optimizer.zero_grad()
+      outputs = model(x_train)
+      loss = criterion(outputs.squeeze(), y_train)
+      loss.backward()
+      optimizer.step()
+      
+      # 验证集上的损失
+      model.eval()
+      with torch.no_grad():
+          val_outputs = model(x_val)
+          val_loss = criterion(val_outputs.squeeze(), y_val)
+      
+      # 更新最终验证损失
+      final_val_loss = val_loss.item()
     
-    return best_val_loss
+    return final_val_loss
 
 # 使用 optuna 进行超参数调优
 # study = optuna.create_study(direction='minimize')
-# study.optimize(objective, n_trials=20)  # 设置调优的试验次数
+# study.optimize(objective, n_trials=50)  # 设置调优的试验次数
 
-# 获取最佳超参数
+# # 获取最佳超参数
 # best_params = study.best_params
 # hidden_size1 = best_params['hidden_size1']
 # hidden_size2 = best_params['hidden_size2']
@@ -246,7 +245,7 @@ for epoch in range(epochs):
     torch.save(model.state_dict(), temp_path)
 
   if (epoch + 1) % 10 == 0:
-    print(f'Epoch [{epoch+1}/2000], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+    print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
 # 加载最佳模型
 # model.load_state_dict(torch.load(temp_path))
