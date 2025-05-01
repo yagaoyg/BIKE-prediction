@@ -40,9 +40,9 @@ CONFIG = {
         'season'
     ],
     'target_col': 'trips',
-    'time_steps': 1,  # 时间步长
-    'batch_size': 64,
-    'train_epochs': 200,
+    'time_steps': 7,  # 时间步长
+    'batch_size': 32,
+    'train_epochs': 400,
     'tuning_epochs': 50,
     'train_split': 0.7,     # 训练集比例 0-70%
     'val_split': 0.8,       # 验证集比例 70-80%
@@ -369,7 +369,7 @@ def main():
     criterion = nn.HuberLoss()
     optimizer = optim.AdamW(model.parameters(), lr=study.best_params['learning_rate'], weight_decay=0.01)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-                                                   factor=0.5, patience=10, 
+                                                   factor=0.5, patience=20, 
                                                    verbose=True)
     
     # 训练模型

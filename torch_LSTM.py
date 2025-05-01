@@ -98,7 +98,7 @@ y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 input_size = x_train.shape[2]
 
 # 定义损失函数
-criterion = nn.MSELoss()
+criterion = nn.HuberLoss()
 
 # 定义批量大小
 batch_size = 64
@@ -159,7 +159,7 @@ def objective(trial):
     
     # 创建模型
     model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
-    criterion = nn.MSELoss()
+    criterion = nn.HuberLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
     
     # 训练模型

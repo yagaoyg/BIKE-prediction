@@ -153,7 +153,7 @@ learning_rate = 0.0001
 model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
 
 # 定义损失函数和优化器
-criterion = nn.MSELoss()
+criterion = nn.HuberLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-5)
 
 # 训练模型
