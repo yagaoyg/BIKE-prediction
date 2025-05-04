@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
@@ -9,9 +8,7 @@ import seaborn as sns
 import os
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-import optuna  # 新增
 
 # 配置设置
 sns.set_style("darkgrid")  # 设置 Seaborn 图表样式
@@ -27,29 +24,13 @@ CONFIG = {
     'feature_cols': [
         'season', 'year', 'month', 'day', 'dow', 'hour',
         'holiday', 'workingday', 'weather', 'temp',
-        'atemp', 'humidity', 'windspeed','regrate'
+        'atemp', 'humidity', 'windspeed'
     ],
     'target_col': 'count',
     'time_steps': 12,
-    'batch_size': 32,
-    'train_epochs': 200,
-    'tuning_epochs': 50,  # 调优时使用较少的轮数
+    'batch_size': 64,
     'train_split': 0.6,
     'val_split': 0.7,
-    'model_params': {
-        # 模型维度
-        'd_model': 128,
-        # 注意力头数
-        'num_heads': 4,
-        # 前馈网络维度
-        'ff_dim': 352,
-        # Transformer 编码器层数
-        'num_layers': 3,
-        # Dropout 概率
-        'dropout': 0.2,
-        # 学习率
-        'learning_rate': 1e-5
-    }
 }
 
 class BikeDataset(Dataset):
@@ -172,157 +153,42 @@ def process_data(data_path):
     # df = df.fillna(method='ffill').fillna(method='bfill')  # 填充缺失值
     return df
 
-def train_and_evaluate(model, train_loader, val_loader, criterion, optimizer, 
-                      scheduler, num_epochs, device, patience=20):
-    """
-    训练和评估模型。
-    """
-    best_val_loss = float('inf')  # 初始化最佳验证损失
-    train_losses = []  # 记录训练损失
-    val_losses = []  # 记录验证损失
-    train_rmse = []  # 记录训练 RMSE
-    val_rmse = []  # 记录验证 RMSE
+def print_model_params(model):
+    """打印模型的关键参数"""
+    print("\n=== 模型参数信息 ===")
     
-    for epoch in range(num_epochs):
-        # 训练阶段
-        model.train()
-        train_loss = 0
-        train_preds = []  # 收集训练预测值
-        train_trues = []  # 收集训练真实值
-        
-        for batch_X, batch_y in train_loader:
-            batch_X, batch_y = batch_X.to(device), batch_y.to(device)
-            optimizer.zero_grad()
-            outputs, _ = model(batch_X)  # 修改为接收注意力权重
-            loss = criterion(outputs, batch_y)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # 梯度裁剪
-            optimizer.step()
-            train_loss += loss.item()
-            
-            # 收集预测值和真实值用于计算 RMSE
-            train_preds.extend(outputs.cpu().detach().numpy())
-            train_trues.extend(batch_y.cpu().numpy())
-            
-        # 验证阶段
-        model.eval()
-        val_loss = 0
-        val_preds = []  # 收集验证预测值
-        val_trues = []  # 收集验证真实值
-        
-        with torch.no_grad():
-            for batch_X, batch_y in val_loader:
-                batch_X, batch_y = batch_X.to(device), batch_y.to(device)
-                outputs, _ = model(batch_X)  # 修改为接收注意力权重
-                val_loss += criterion(outputs, batch_y).item()
-                
-                # 收集预测值和真实值用于计算 RMSE
-                val_preds.extend(outputs.cpu().numpy())
-                val_trues.extend(batch_y.cpu().numpy())
-        
-        # 计算平均损失
-        train_loss /= len(train_loader)
-        val_loss /= len(val_loader)
-        
-        # 计算 RMSE
-        current_train_rmse = np.sqrt(mean_squared_error(train_trues, train_preds))
-        current_val_rmse = np.sqrt(mean_squared_error(val_trues, val_preds))
-        
-        # 记录损失和 RMSE
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
-        train_rmse.append(current_train_rmse)
-        val_rmse.append(current_val_rmse)
-        
-        # 早停检查
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            torch.save(model.state_dict(), './model/temp/temp.pth')  # 保存最佳模型
-        
-        scheduler.step(val_loss)
-        
-        if (epoch + 1) % 10 == 0:
-            print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Train RMSE: {current_train_rmse:.4f}, Val RMSE: {current_val_rmse:.4f}')
+    # 获取特征处理器参数
+    feature_processor = model.feature_processor
+    print(f"特征处理器输入维度: {feature_processor.layer1[0].in_features}")
+    print(f"特征处理器隐藏层维度: {feature_processor.layer1[0].out_features}")
+    print(f"特征处理器输出维度: {feature_processor.layer2[0].out_features}")
     
-    return train_losses, val_losses, train_rmse, val_rmse
-
-def objective(trial):
-    """
-    Optuna 超参数调优目标函数。
-    """
-    # 定义超参数搜索空间
-    num_heads = trial.suggest_int("num_heads", 2, 8, step=2)
-    d_model = trial.suggest_int("d_model", num_heads * 8, num_heads * 32, step=num_heads * 8)  # 确保 d_model 是 num_heads 的倍数
-    ff_dim = trial.suggest_int("ff_dim", 128, 512, step=32)
-    num_layers = trial.suggest_int("num_layers", 1, 4)
-    dropout = trial.suggest_float("dropout", 0.1, 0.5, step=0.05)
-    learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 1e-3)
+    # 获取Transformer参数
+    transformer_layer = model.transformer.layers[0]
+    print(f"\nTransformer参数:")
+    print(f"注意力头数: {transformer_layer.self_attn.num_heads}")
+    print(f"模型维度(d_model): {transformer_layer.self_attn.embed_dim}")
+    print(f"前馈网络维度: {transformer_layer.linear1.out_features}")
+    print(f"Transformer层数: {len(model.transformer.layers)}")
     
-    # 数据准备
-    df = process_data('./data/china_bike_data_2022.csv')
+    # 获取解码器参数
+    decoder = model.decoder
+    print(f"\n解码器参数:")
+    print(f"输入维度: {decoder[0].in_features}")
+    print(f"隐藏层维度: {decoder[0].out_features}")
+    print(f"输出维度: {decoder[-1].out_features}")
     
-    # 使用全局配置的特征
-    scaler = RobustScaler()
-    df[CONFIG['feature_cols']] = scaler.fit_transform(df[CONFIG['feature_cols']])
-    target_scaler = RobustScaler()
-    df[CONFIG['target_col']] = target_scaler.fit_transform(df[[CONFIG['target_col']]])
-    
-    # 使用全局配置的参数
-    dataset = BikeDataset(df, CONFIG['feature_cols'], CONFIG['target_col'], CONFIG['time_steps'])
-    
-    train_size = int(CONFIG['train_split'] * len(dataset))
-    val_size = int(CONFIG['val_split'] * len(dataset))
-    
-    train_dataset = torch.utils.data.Subset(dataset, range(train_size))
-    val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
-    train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
-    
-    # 模型初始化
-    model = ImprovedTransformer(
-        input_dim=len(CONFIG['feature_cols']),
-        d_model=d_model,
-        num_heads=num_heads,
-        ff_dim=ff_dim,
-        num_layers=num_layers,
-        dropout=dropout,
-        time_steps=CONFIG['time_steps']
-    ).to(device)
-    
-    # 优化配置
-    criterion = nn.HuberLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-                                                     factor=0.5, patience=10, verbose=False)
-    
-    # 训练模型
-    train_losses, val_losses, train_rmse, val_rmse = train_and_evaluate(
-        model, train_loader, val_loader, criterion, optimizer, scheduler,
-        CONFIG['tuning_epochs'], device)
-    
-    # 返回验证集的最终 RMSE 作为目标值
-    return val_rmse[-1]
+    # 统计总参数量
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"\n总参数量: {total_params:,}")
+    print(f"可训练参数量: {trainable_params:,}")
 
 def main():
     """
     主函数，执行超参数调优和模型训练。
     """
-    # 使用 Optuna 进行超参数调优
-    # study = optuna.create_study(direction="minimize")
-    # study.optimize(objective, n_trials=20)
-    
-    # print("Best hyperparameters:", study.best_params)
-    
-    # 更新配置参数为最佳参数
-    # best_params = {
-    #     'd_model': study.best_params['d_model'],
-    #     'num_heads': study.best_params['num_heads'],
-    #     'ff_dim': study.best_params['ff_dim'],
-    #     'num_layers': study.best_params['num_layers'],
-    #     'dropout': study.best_params['dropout']
-    # }
-    # CONFIG['model_params'].update(best_params)
-    
+
     # 数据准备
     df = process_data('./data/china_bike_data_2022.csv')
     
@@ -337,35 +203,22 @@ def main():
     train_size = int(CONFIG['train_split'] * len(dataset))
     val_size = int(CONFIG['val_split'] * len(dataset))
     
-    train_dataset = torch.utils.data.Subset(dataset, range(train_size))
     val_dataset = torch.utils.data.Subset(dataset, range(train_size, val_size))
-    
-    train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
-    
-    # 使用配置参数初始化模型，移除 learning_rate
-    model_params = CONFIG['model_params'].copy()
-    learning_rate = model_params.pop('learning_rate')  # 从模型参数中移除 learning_rate
-    
-    model = ImprovedTransformer(
-        input_dim=len(CONFIG['feature_cols']),
-        time_steps=CONFIG['time_steps'],
-        **model_params  # 不包含 learning_rate 的模型参数
-    ).to(device)
-    
-    # 训练配置
-    criterion = nn.HuberLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, verbose=True)
-    
-    # 训练模型
-    train_losses, val_losses, train_rmse, val_rmse = train_and_evaluate(
-        model, train_loader, val_loader, criterion, optimizer, scheduler,
-        CONFIG['train_epochs'], device)
-    
+        
     # 保存结果
     save_dir = f'./model/{datetime.now().strftime("%Y-%m-%d %H-%M-%S")}'
     os.makedirs(save_dir, exist_ok=True)
+    
+    # 最佳模型路径
+    model_path = './best_model/3/full_model.pth'
+    
+    # 加载最佳模型
+    model = torch.load(model_path).to(device)  # 加载模型到设备
+    print("Model loaded successfully.")
+    
+    # 打印模型参数
+    print_model_params(model)
     
     # 模型评估
     model.eval()
@@ -403,16 +256,7 @@ def main():
     print(f"Final MAPE: {final_mape:.2f}%")
     print(f"Final WAPE: {final_wape:.2f}%")
     print(f"Final R²: {final_r2:.4f}")
-        
-    # 损失曲线
-    plt.figure(figsize=(6,4))
-    plt.plot(train_losses, label='Training Loss')
-    plt.plot(val_losses, label='Validation Loss')
-    plt.title('Model Loss')
-    plt.legend()
-    plt.savefig(f'{save_dir}/loss.png')
-    plt.show()
-    
+            
     # 预测结果对比
     plt.figure(figsize=(12, 4))
     plt.plot(val_trues, label='True Values', marker='.', alpha=0.7)
@@ -422,18 +266,6 @@ def main():
     
     plt.savefig(f'{save_dir}/training_results.png')
     plt.show()
-    
-    # 保存完整模型和参数
-    torch.save(model.state_dict(), f'{save_dir}/final_model_state.pth')
-    torch.save(model, f'{save_dir}/full_model.pth')
-    
-    # 保存标准化器
-    torch.save({
-        'feature_scaler': scaler,
-        'target_scaler': target_scaler,
-        'feature_cols': CONFIG['feature_cols'],
-        'time_steps': CONFIG['time_steps']
-    }, f'{save_dir}/model_config.pth')
 
 if __name__ == "__main__":
     main()

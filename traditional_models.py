@@ -24,7 +24,7 @@ def load_and_preprocess_data(data_path):
     ]
     
     train_size = int(len(df) * 0.7)
-    test_size = int(len(df) * 0.85)
+    test_size = int(len(df) * 0.8)
     
     train_data = df.iloc[:train_size]
     test_data = df.iloc[train_size:test_size]

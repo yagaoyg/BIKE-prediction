@@ -41,7 +41,7 @@ CONFIG = {
     ],
     'target_col': 'trips',
     'time_steps': 7,  # 时间步长
-    'batch_size': 32,
+    'batch_size': 64,
     'train_epochs': 400,
     'tuning_epochs': 50,
     'train_split': 0.7,     # 训练集比例 0-70%
@@ -50,10 +50,10 @@ CONFIG = {
     'model_params': {
         'd_model': 128,
         'num_heads': 4,
-        'ff_dim': 256,
+        'ff_dim': 192,
         'num_layers': 3,
         'dropout': 0.1,
-        'learning_rate': 1e-4
+        'learning_rate': 1e-5
     }
 }
 
@@ -316,21 +316,21 @@ def main():
     主函数，执行超参数调优和模型训练。
     """
     # 使用 Optuna 进行超参数调优
-    study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=10)  # 运行 20 次实验
+    # study = optuna.create_study(direction="minimize")
+    # study.optimize(objective, n_trials=10)  # 运行 20 次实验
     
     # 输出最佳超参数
-    print("Best hyperparameters:", study.best_params)
+    # print("Best hyperparameters:", study.best_params)
     
     # 更新配置参数为最佳参数
-    best_params = {
-        'd_model': study.best_params['d_model'],
-        'num_heads': study.best_params['num_heads'],
-        'ff_dim': study.best_params['ff_dim'],
-        'num_layers': study.best_params['num_layers'],
-        'dropout': study.best_params['dropout']
-    }
-    CONFIG['model_params'].update(best_params)
+    # best_params = {
+    #     'd_model': study.best_params['d_model'],
+    #     'num_heads': study.best_params['num_heads'],
+    #     'ff_dim': study.best_params['ff_dim'],
+    #     'num_layers': study.best_params['num_layers'],
+    #     'dropout': study.best_params['dropout']
+    # }
+    # CONFIG['model_params'].update(best_params)
     
     # 数据准备
     df = process_data('./data/daily_citi_bike_trip_counts_and_weather.csv')
@@ -367,9 +367,9 @@ def main():
     
     # 训练配置
     criterion = nn.HuberLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=study.best_params['learning_rate'], weight_decay=0.01)
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-                                                   factor=0.5, patience=20, 
+                                                   factor=0.5, patience=50, 
                                                    verbose=True)
     
     # 训练模型

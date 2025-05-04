@@ -52,7 +52,9 @@ cols = ['season',
         'temp',
         'atemp',
         'humidity',
-        'windspeed']
+        'windspeed',
+        'regrate'
+        ]
 
 # 特征量标准化
 transformer = RobustScaler()

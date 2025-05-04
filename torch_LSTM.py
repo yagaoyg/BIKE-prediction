@@ -82,6 +82,9 @@ def create_dataset(x, y, time_steps=1):
 
 time_steps = 1
 
+# 定义批量大小
+batch_size = 64
+
 x_train, y_train = create_dataset(train_data, train_data['trips'], time_steps)
 x_val, y_val = create_dataset(val_data, val_data['trips'], time_steps)
 x_test, y_test = create_dataset(test_data, test_data['trips'], time_steps)
@@ -94,14 +97,18 @@ y_val = torch.tensor(y_val, dtype=torch.float32).to(device)
 x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
 y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 
+# 创建数据加载器
+train_dataset = torch.utils.data.TensorDataset(x_train, y_train)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+val_dataset = torch.utils.data.TensorDataset(x_val, y_val)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size)
+
 # 定义 input_size
 input_size = x_train.shape[2]
 
 # 定义损失函数
 criterion = nn.HuberLoss()
-
-# 定义批量大小
-batch_size = 64
 
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
@@ -148,53 +155,6 @@ class MYLSTMModel(nn.Module):
     out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
     return out
 
-# 定义目标函数，用于 optuna 调优
-def objective(trial):
-    # 定义超参数搜索空间
-    hidden_size1 = trial.suggest_int('hidden_size1', 64, 256, step=16)
-    hidden_size2 = trial.suggest_int('hidden_size2', 32, 128, step=16)
-    dropout1 = trial.suggest_float('dropout1', 0.1, 0.5, step=0.05)
-    dropout2 = trial.suggest_float('dropout2', 0.1, 0.5, step=0.05)
-    learning_rate = trial.suggest_loguniform('learning_rate', 1e-4, 1e-3)
-    
-    # 创建模型
-    model = MYLSTMModel(input_size, hidden_size1, hidden_size2, dropout1, dropout2).to(device)
-    criterion = nn.HuberLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
-    
-    # 训练模型
-    final_val_loss = float('inf')
-    for epoch in range(800):  # 限制训练轮数以加速调优
-      model.train()
-      optimizer.zero_grad()
-      outputs = model(x_train)
-      loss = criterion(outputs.squeeze(), y_train)
-      loss.backward()
-      optimizer.step()
-      
-      # 验证集上的损失
-      model.eval()
-      with torch.no_grad():
-          val_outputs = model(x_val)
-          val_loss = criterion(val_outputs.squeeze(), y_val)
-      
-      # 更新最终验证损失
-      final_val_loss = val_loss.item()
-    
-    return final_val_loss
-
-# 使用 optuna 进行超参数调优
-# study = optuna.create_study(direction='minimize')
-# study.optimize(objective, n_trials=50)  # 设置调优的试验次数
-
-# # 获取最佳超参数
-# best_params = study.best_params
-# hidden_size1 = best_params['hidden_size1']
-# hidden_size2 = best_params['hidden_size2']
-# dropout1 = best_params['dropout1']
-# dropout2 = best_params['dropout2']
-# learning_rate = best_params['learning_rate']
-
 # 手动设置参数
 hidden_size1 = 128
 hidden_size2 = 80
@@ -214,38 +174,49 @@ train_losses, val_losses = [], []
 best_val_loss = float('inf')
 best_epoch = 0
 
-epochs = 4000  # 设置训练轮数
+epochs = 2000  # 设置训练轮数
 
 # 训练模型
 for epoch in range(epochs):
-  model.train()
-  optimizer.zero_grad()
+    model.train()
+    train_loss = 0
+    
+    # 批处理训练
+    for batch_x, batch_y in train_loader:
+        optimizer.zero_grad()
+        outputs = model(batch_x)
+        loss = criterion(outputs.squeeze(), batch_y)
+        loss.backward()
+        optimizer.step()
+        train_loss += loss.item()
+            
+    # 计算平均训练损失
+    train_loss = train_loss / len(train_loader)
+    
+    # 验证
+    model.eval()
+    val_loss = 0
+    with torch.no_grad():
+        for batch_x, batch_y in val_loader:
+            val_outputs = model(batch_x)
+            batch_loss = criterion(val_outputs.squeeze(), batch_y)
+            val_loss += batch_loss.item()
+    
+    # 计算平均验证损失
+    val_loss = val_loss / len(val_loader)
+    
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+    
+      # 保存最佳模型
+    if val_loss < best_val_loss:
+      best_val_loss = val_loss
+      best_epoch = epoch + 1
+      torch.save(model.state_dict(), temp_path)
+      trigger_times = 0
 
-  # 前向传播
-  outputs = model(x_train)
-  loss = criterion(outputs.squeeze(), y_train)
-
-  # 反向传播和优化
-  loss.backward()
-  optimizer.step()
-
-  # 验证集上的损失
-  model.eval()
-  with torch.no_grad():
-    val_outputs = model(x_val)
-    val_loss = criterion(val_outputs.squeeze(), y_val)
-
-  train_losses.append(loss.item())
-  val_losses.append(val_loss.item())
-
-  # 保存最佳模型
-  if val_loss.item() < best_val_loss:
-    best_val_loss = val_loss.item()
-    best_epoch = epoch + 1
-    torch.save(model.state_dict(), temp_path)
-
-  if (epoch + 1) % 10 == 0:
-    print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+    if (epoch + 1) % 10 == 0:
+      print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}')
 
 # 加载最佳模型
 # model.load_state_dict(torch.load(temp_path))
@@ -266,12 +237,13 @@ plt.show()
 # 在测试集上进行预测
 model.eval()
 with torch.no_grad():
-  y_pred = model(x_test).cpu().numpy()
-  # y_pred = model(x_val).cpu().numpy()
+  # y_pred = model(x_test).cpu().numpy()
+  y_pred = model(x_val).cpu().numpy()
 
 # 反标准化预测值和真实值
 y_pred_inv = trips_transformer.inverse_transform(y_pred.reshape(1, -1))
-y_test_inv = trips_transformer.inverse_transform(y_test.cpu().numpy().reshape(1, -1))
+# y_test_inv = trips_transformer.inverse_transform(y_test.cpu().numpy().reshape(1, -1))
+y_test_inv = trips_transformer.inverse_transform(y_val.cpu().numpy().reshape(1, -1))
 
 # 计算均方根误差
 rmse_lstm = round(np.sqrt(mean_squared_error(y_test_inv.flatten(), y_pred_inv.flatten())), 6)
