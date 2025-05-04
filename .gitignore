@@ -1,8 +1,10 @@
 .vscode
 .venv
+__pycache__
 
 ~$train.xlsx
 model
 *.ipynb
 .VSCodeCounter
 results
+base_model

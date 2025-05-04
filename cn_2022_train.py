@@ -264,6 +264,8 @@ plt.show()
 # 保存模型和数据记录
 torch.save(model.state_dict(), base_path + 'bike_pred_model.pth')
 
+torch.save(model, f'{base_path}/full_model.pth')
+
 # 记录数据指标
 new_df = pd.DataFrame([[start_time,end_time,data_name,'pytorch',0,train_percentage,time_steps,hidden_size1,dropout1,hidden_size2,dropout2,epochs,batch_size,rmse_test,best_val_loss]],columns=['start_time','end_time','data_name','kuangjia','index','train_percentage','time_steps','l1','d1','l2','d2','epochs','batch_size','rmse_lstm','min_val_loss'])
 save_data = train_df._append(new_df)
