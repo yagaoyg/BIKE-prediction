@@ -1,9 +1,78 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0" version="26.3.0">
   <diagram name="第 1 页" id="w7U3_HbaIbr9yU2ABQkF">
-    <mxGraphModel>
+    <mxGraphModel dx="1426" dy="797" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-1" target="sn3fn-c3Sr_noOPjmAJB-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-1" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;数据标准化&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="334" y="120" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-2" target="sn3fn-c3Sr_noOPjmAJB-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-2" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;时序数据处理&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="334" y="200" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-3" target="sn3fn-c3Sr_noOPjmAJB-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-3" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;层次化特征处理&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="334" y="280" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-4" target="sn3fn-c3Sr_noOPjmAJB-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-4" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;位置编码&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="334" y="360" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-5" target="sn3fn-c3Sr_noOPjmAJB-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-5" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;编码器&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="334" y="440" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-6" target="sn3fn-c3Sr_noOPjmAJB-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-6" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;显式注意力计算&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="334" y="520" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-7" target="sn3fn-c3Sr_noOPjmAJB-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-7" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;解码器&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="334" y="600" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-8" target="sn3fn-c3Sr_noOPjmAJB-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-8" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;反标准化&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="334" y="680" width="159" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sn3fn-c3Sr_noOPjmAJB-20" target="sn3fn-c3Sr_noOPjmAJB-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-20" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;输入数据&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="371" y="70" width="86" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-22" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;预测数据&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="371" y="770" width="86" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-24" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="110" width="300" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-25" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;输入层&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="210" y="180" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-26" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="350" width="300" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="sn3fn-c3Sr_noOPjmAJB-27" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;编码器&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="220" y="415" width="120" height="30" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
