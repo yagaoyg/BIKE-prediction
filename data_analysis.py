@@ -9,9 +9,16 @@ from sklearn.metrics import mutual_info_score
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 
+# 设置全局字体样式和大小
 sns.set_style("darkgrid")
 plt.rcParams['font.sans-serif'] = ['SimHei']
-    
+plt.rcParams['font.size'] = 18  # 增大基础字体大小
+plt.rcParams['axes.titlesize'] = 20  # 增大标题字体大小
+plt.rcParams['axes.labelsize'] = 18  # 增大轴标签字体大小
+plt.rcParams['xtick.labelsize'] = 16  # 增大x轴刻度字体大小
+plt.rcParams['ytick.labelsize'] = 16  # 增大y轴刻度字体大小
+plt.rcParams['legend.fontsize'] = 18  # 增大图例字体大小
+
 data_name = 'daily_citi_bike_trip_counts_and_weather'
 # data_name = 'china_bike_data_2022'
 
@@ -42,8 +49,10 @@ data = pd.read_csv('./data/' + data_name + '.csv',
 #                    index_col=['datetime'])
 
 # 以日期为x轴，骑行次数为y轴，绘制折线图
-plt.figure(figsize=(15,5))
+plt.figure(figsize=(12,5))
 sns.lineplot(data=data, x=data.index, y=data.trips)
+plt.xlabel('日期')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
 plt.savefig('./output/trips of day.png')
 plt.show()
 
@@ -55,45 +64,80 @@ plt.show()
 # print(data.head())
 
 # 以月份为x轴，骑行次数为y轴，绘制折线图
-data_month = data.resample('M').sum()
-plt.figure(figsize=(15,5))
-sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips, marker='o')
-plt.savefig('./output/trips of month.png')
-plt.show()
+# data_month = data.resample('M').sum()
+# plt.figure(figsize=(12,5))
+# sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips, marker='o')
+# plt.xlabel('月份')  # 设置X轴标签
+# plt.ylabel('骑行次数')  # 设置Y轴标签
+# plt.savefig('./output/trips of month.png')
+# plt.show()
 
 # 数值型特征的统计分析
-# numerical_features = ['precipitation', 'snowfall', 'snow_depth','max_t', 'min_t', 'dt','average_wind_speed','stations_in_service']
+numerical_features1 = ['precipitation', 'snowfall']
+numerical_features2 = ['snow_depth','max_t']
+numerical_features3 = ['min_t', 'dt']
+numerical_features4 = ['average_wind_speed','stations_in_service']
+
+# 绘制数值型特征的分布直方图
+plt.figure(figsize=(12, 6))
+for i, feature in enumerate(numerical_features1, 1):
+    plt.subplot(1, 2, i)
+    plt.ylabel('次数')  # 设置Y轴标签
+    sns.histplot(data=data[feature], kde=True)
+    # plt.title(f'{feature}')
+plt.tight_layout()
+plt.savefig('./output/' + data_name + '_numerical_features_distribution1.png')
+plt.show()
+
+plt.figure(figsize=(12, 6))
+for i, feature in enumerate(numerical_features2, 1):
+    plt.subplot(1, 2, i)
+    plt.ylabel('次数')  # 设置Y轴标签
+    sns.histplot(data=data[feature], kde=True)
+    # plt.title(f'{feature}')
+plt.tight_layout()
+plt.savefig('./output/' + data_name + '_numerical_features_distribution2.png')
+plt.show()
+
+plt.figure(figsize=(12, 6))
+for i, feature in enumerate(numerical_features3, 1):
+    plt.subplot(1, 2, i)
+    plt.ylabel('次数')  # 设置Y轴标签
+    sns.histplot(data=data[feature], kde=True)
+    # plt.title(f'{feature}')
+plt.tight_layout()
+plt.savefig('./output/' + data_name + '_numerical_features_distribution3.png')
+plt.show()
+
+plt.figure(figsize=(12, 6))
+for i, feature in enumerate(numerical_features4, 1):
+    plt.subplot(1, 2, i)
+    plt.ylabel('次数')  # 设置Y轴标签
+    sns.histplot(data=data[feature], kde=True)
+    # plt.title(f'{feature}')
+plt.tight_layout()
+plt.savefig('./output/' + data_name + '_numerical_features_distribution4.png')
+plt.show()
+
+# 共享自行车用量的分布
+# numerical_features = 'trips'
 # stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
 # print("\n数值型特征的统计分析：")
 # print(stats_df)
 
-# 绘制数值型特征的分布直方图
-# plt.figure(figsize=(24, 12))
-# for i, feature in enumerate(numerical_features, 1):
-#     plt.subplot(2, 4, i)
-#     sns.histplot(data=data[feature], kde=True)
-#     plt.title(f'{feature}')
+# 绘制自行车用量的分布直方图
+# plt.figure(figsize=(6, 6))
+# sns.histplot(data=data[numerical_features], kde=True)
+# plt.title(f'{numerical_features}')
 # plt.tight_layout()
-# plt.savefig('./output/' + data_name + '_numerical_features_distribution.png')
+# plt.savefig('./output/' + data_name + 'trips_distribution.png')
 # plt.show()
 
-# 共享自行车用量的分布
-numerical_features = 'trips'
-stats_df = data[numerical_features].agg(['mean', 'std', 'skew', 'kurt']).round(2)
-print("\n数值型特征的统计分析：")
-print(stats_df)
-
-# 绘制数值型特征的分布直方图
-plt.figure(figsize=(6, 6))
-sns.histplot(data=data[numerical_features], kde=True)
-plt.title(f'{numerical_features}')
-plt.tight_layout()
-plt.savefig('./output/' + data_name + 'trips_distribution.png')
-plt.show()
-
 # 服务中的站点数量
-# plt.figure(figsize=(10,4))
+# plt.figure(figsize=(10,5))
 # sns.lineplot(data=data, x=data.index, y='stations_in_service')
+# plt.xlabel('日期')  # 设置X轴标签
+# plt.ylabel('站点数量')  # 设置Y轴标签
 # plt.savefig('./output/stations_in_service.png')
 # plt.show()
 
@@ -181,12 +225,12 @@ plt.show()
 # plt.show()
 
 # 分析所有特征与骑行次数的关系
-corr = data.corr()
-plt.figure(figsize=(15, 14))
-sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-plt.title("heatmap")
-plt.savefig('./output/heatmap.png')
-plt.show()
+# corr = data.corr()
+# plt.figure(figsize=(17, 17))
+# sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+# plt.title("heatmap")
+# plt.savefig('./output/heatmap.png')
+# plt.show()
 
 # 分析所有特征与骑行次数的关系2
 # corr = data[['precipitation','snowfall','max_t','min_t','average_wind_speed','dow','holiday','stations_in_service','weekday','weekday_non_holiday','month','dt','day','year','trips']].corr()
@@ -203,8 +247,10 @@ plt.show()
 
 # 按季节显示骑行次数
 # seasonal_data = data.groupby('season').mean()
-# plt.figure(figsize=(8,4))
+# plt.figure(figsize=(10,5))
 # ax = sns.barplot(data=seasonal_data, x='season', y=seasonal_data.trips,palette='viridis')
+# ax.set_xlabel('季节')  # 设置X轴标签
+# ax.set_ylabel('平均骑行次数')  # 设置Y轴标签
 # # 在柱状图上添加数值标注
 # for i in ax.containers:
 #     ax.bar_label(i, fmt='%.0f')
@@ -213,8 +259,10 @@ plt.show()
 
 # 按星期显示骑行次数
 # dow_data = data.groupby('dow').mean()
-# plt.figure(figsize=(10,4))
+# plt.figure(figsize=(10,5))
 # ax = sns.barplot(data=dow_data, x='dow', y=dow_data.trips, palette='viridis')
+# ax.set_xlabel('星期')  # 设置X轴标签
+# ax.set_ylabel('平均骑行次数')  # 设置Y轴标签
 # # 在柱状图上添加数值标注
 # for i in ax.containers:
 #     ax.bar_label(i, fmt='%.0f')
@@ -298,7 +346,7 @@ plt.show()
 # 分析假期相关特征的分布
 plt.figure(figsize=(21, 7))
 
-# 计算每个类别的平均值
+# # 计算每个类别的平均值
 holiday_means = data.groupby('holiday')['trips'].mean().round(0)
 weekday_means = data.groupby('weekday')['trips'].mean().round(0)
 weekday_non_holiday_means = data.groupby('weekday_non_holiday')['trips'].mean().round(0)
@@ -306,11 +354,13 @@ weekday_non_holiday_means = data.groupby('weekday_non_holiday')['trips'].mean().
 # holiday分布及其与trips的关系
 plt.subplot(131)
 sns.boxplot(x='holiday', y='trips', data=data)
-plt.title('Holiday vs Trips')
+plt.xlabel('是否假期')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+# plt.title('Holiday vs Trips')
 # 添加均值标注
 for i, value in enumerate(holiday_means):
     y_pos = data[data['holiday'] == i]['trips'].max() + 1000
-    plt.text(i, y_pos, f'Mean:\n{int(value)}', 
+    plt.text(i, y_pos, f'平均值:\n{int(value)}', 
              horizontalalignment='center', 
              bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
              rotation=0)  # 设置水平方向
@@ -318,11 +368,13 @@ for i, value in enumerate(holiday_means):
 # weekday分布及其与trips的关系
 plt.subplot(132)
 sns.boxplot(x='weekday', y='trips', data=data)
-plt.title('Weekday vs Trips')
+plt.xlabel('是否工作日')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+# plt.title('Weekday vs Trips')
 # 添加均值标注
 for i, value in enumerate(weekday_means):
     y_pos = data[data['weekday'] == i]['trips'].max() + 1000
-    plt.text(i, y_pos, f'Mean:\n{int(value)}', 
+    plt.text(i, y_pos, f'平均值:\n{int(value)}', 
              horizontalalignment='center',
              bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
              rotation=0)  # 设置水平方向
@@ -330,11 +382,13 @@ for i, value in enumerate(weekday_means):
 # weekday_non_holiday分布及其与trips的关系
 plt.subplot(133)
 sns.boxplot(x='weekday_non_holiday', y='trips', data=data)
-plt.title('Weekday Non-Holiday vs Trips')
+plt.xlabel('是否纯工作日')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+# plt.title('Weekday Non-Holiday vs Trips')
 # 添加均值标注
 for i, value in enumerate(weekday_non_holiday_means):
     y_pos = data[data['weekday_non_holiday'] == i]['trips'].max() + 1000
-    plt.text(i, y_pos, f'Mean:\n{int(value)}', 
+    plt.text(i, y_pos, f'平均值:\n{int(value)}', 
              horizontalalignment='center',
              bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),
              rotation=0)  # 设置水平方向
@@ -344,38 +398,38 @@ plt.savefig('./output/holiday_features_analysis.png')
 plt.show()
 
 # 打印各特征的统计信息
-print("\n各特征的频数统计：")
-print("\nHoliday频数：")
-print(data['holiday'].value_counts())
-print("\nWeekday频数：")
-print(data['weekday'].value_counts())
-print("\nWeekday Non-Holiday频数：")
-print(data['weekday_non_holiday'].value_counts())
+# print("\n各特征的频数统计：")
+# print("\nHoliday频数：")
+# print(data['holiday'].value_counts())
+# print("\nWeekday频数：")
+# print(data['weekday'].value_counts())
+# print("\nWeekday Non-Holiday频数：")
+# print(data['weekday_non_holiday'].value_counts())
 
 # 计算均值统计
-print("\n各特征下的骑行次数均值：")
-print("\nHoliday情况下的平均骑行次数：")
-print(data.groupby('holiday')['trips'].mean())
-print("\nWeekday情况下的平均骑行次数：")
-print(data.groupby('weekday')['trips'].mean())
-print("\nWeekday Non-Holiday情况下的平均骑行次数：")
-print(data.groupby('weekday_non_holiday')['trips'].mean())
+# print("\n各特征下的骑行次数均值：")
+# print("\nHoliday情况下的平均骑行次数：")
+# print(data.groupby('holiday')['trips'].mean())
+# print("\nWeekday情况下的平均骑行次数：")
+# print(data.groupby('weekday')['trips'].mean())
+# print("\nWeekday Non-Holiday情况下的平均骑行次数：")
+# print(data.groupby('weekday_non_holiday')['trips'].mean())
 
 # 计算特征占比
-total_days = len(data)
-print("\n各特征在总天数中的占比：")
+# total_days = len(data)
+# print("\n各特征在总天数中的占比：")
 
-print("\nHoliday占比：")
-holiday_ratio = (data['holiday'].value_counts() / total_days * 100).round(2)
-print(holiday_ratio.to_string(header=False) + ' %')
+# print("\nHoliday占比：")
+# holiday_ratio = (data['holiday'].value_counts() / total_days * 100).round(2)
+# print(holiday_ratio.to_string(header=False) + ' %')
 
-print("\nWeekday占比：")
-weekday_ratio = (data['weekday'].value_counts() / total_days * 100).round(2)
-print(weekday_ratio.to_string(header=False) + ' %')
+# print("\nWeekday占比：")
+# weekday_ratio = (data['weekday'].value_counts() / total_days * 100).round(2)
+# print(weekday_ratio.to_string(header=False) + ' %')
 
-print("\nWeekday Non-Holiday占比：")
-weekday_non_holiday_ratio = (data['weekday_non_holiday'].value_counts() / total_days * 100).round(2)
-print(weekday_non_holiday_ratio.to_string(header=False) + ' %')
+# print("\nWeekday Non-Holiday占比：")
+# weekday_non_holiday_ratio = (data['weekday_non_holiday'].value_counts() / total_days * 100).round(2)
+# print(weekday_non_holiday_ratio.to_string(header=False) + ' %')
 
 # 绘制特征占比饼图
 plt.figure(figsize=(16, 5))
@@ -384,21 +438,21 @@ plt.figure(figsize=(16, 5))
 plt.subplot(131)
 holiday_counts = data['holiday'].value_counts()
 plt.pie(holiday_counts, autopct='%1.1f%%', textprops={'color': 'white'})
-plt.title('Holiday Distribution')
+plt.title('假期分布')
 plt.legend(holiday_counts.index, loc='best')
 
 # Weekday占比饼图
 plt.subplot(132)
 weekday_counts = data['weekday'].value_counts()
 plt.pie(weekday_counts, labels=weekday_counts.index, autopct='%1.1f%%', textprops={'color': 'white'})
-plt.title('Weekday Distribution')
+plt.title('工作日分布')
 plt.legend(weekday_counts.index, loc='best')
 
 # Weekday Non-Holiday占比饼图
 plt.subplot(133)
 weekday_non_holiday_counts = data['weekday_non_holiday'].value_counts()
 plt.pie(weekday_non_holiday_counts, labels=weekday_non_holiday_counts.index, autopct='%1.1f%%', textprops={'color': 'white'})
-plt.title('Weekday Non-Holiday Distribution')
+plt.title('纯工作日分布')
 plt.legend(weekday_non_holiday_counts.index, loc='best')
 
 plt.tight_layout()
@@ -411,56 +465,64 @@ plt.figure(figsize=(12, 12))
 # dow的箱线图分析
 plt.subplot(221)
 sns.boxplot(x='dow', y='trips', data=data)
-plt.title('Dow vs Trips (Box Plot)')
+plt.xlabel('星期')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+plt.title('星期与自行车用量')
 
 # holiday的箱线图分析
 plt.subplot(222)
 sns.boxplot(x='holiday', y='trips', data=data)
-plt.title('Holiday vs Trips (Box Plot)')
+plt.xlabel('假期')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+plt.title('假期与自行车用量')
 
 # 分析连续变量的非线性关系
 plt.subplot(223)
 sns.regplot(x='day', y='trips', data=data, scatter_kws={'alpha':0.5}, 
             order=2, line_kws={'color': 'red'})
-plt.title('Day vs Trips (Polynomial Fit)')
+plt.xlabel('月中日期')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+plt.title('月中日期与自行车用量')
 
 plt.subplot(224)
 sns.regplot(x='year', y='trips', data=data, scatter_kws={'alpha':0.5}, 
             order=2, line_kws={'color': 'red'})
-plt.title('Year vs Trips (Polynomial Fit)')
+plt.xlabel('年份')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+plt.title('年份与自行车用量')
 
 plt.tight_layout()
 plt.savefig('./output/nonlinear_analysis.png')
 plt.show()
 
-# 计算多项式特征与trips的相关性
-poly = PolynomialFeatures(degree=2, include_bias=False)
-day_poly = poly.fit_transform(data[['day']])
-year_poly = poly.fit_transform(data[['year']])
+# # 计算多项式特征与trips的相关性
+# poly = PolynomialFeatures(degree=2, include_bias=False)
+# day_poly = poly.fit_transform(data[['day']])
+# year_poly = poly.fit_transform(data[['year']])
 
-# 多项式回归
-day_reg = LinearRegression().fit(day_poly, data['trips'])
-year_reg = LinearRegression().fit(year_poly, data['trips'])
+# # 多项式回归
+# day_reg = LinearRegression().fit(day_poly, data['trips'])
+# year_reg = LinearRegression().fit(year_poly, data['trips'])
 
-print("\n多项式回归R²值：")
-print(f"Day polynomial R²: {day_reg.score(day_poly, data['trips']):.4f}")
-print(f"Year polynomial R²: {year_reg.score(year_poly, data['trips']):.4f}")
+# print("\n多项式回归R²值：")
+# print(f"Day polynomial R²: {day_reg.score(day_poly, data['trips']):.4f}")
+# print(f"Year polynomial R²: {year_reg.score(year_poly, data['trips']):.4f}")
 
 # 计算互信息分数
-print("\n互信息分数（反映非线性相关性）：")
-print("互信息强度分级参考：")
-print("0-0.1: 极弱相关或无相关")
-print("0.1-0.3: 弱相关")
-print("0.3-0.5: 中等相关")
-print("0.5-0.8: 强相关")
-print("0.8-1.0: 极强相关")
-print("\n各特征的互信息分数：")
-print(f"Dow MI: {mutual_info_score(data['dow'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
-print(f"Holiday MI: {mutual_info_score(data['holiday'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
-print(f"Day MI: {mutual_info_score(pd.qcut(data['day'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
-print(f"Year MI: {mutual_info_score(pd.qcut(data['year'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+# print("\n互信息分数（反映非线性相关性）：")
+# print("互信息强度分级参考：")
+# print("0-0.1: 极弱相关或无相关")
+# print("0.1-0.3: 弱相关")
+# print("0.3-0.5: 中等相关")
+# print("0.5-0.8: 强相关")
+# print("0.8-1.0: 极强相关")
+# print("\n各特征的互信息分数：")
+# print(f"Dow MI: {mutual_info_score(data['dow'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+# print(f"Holiday MI: {mutual_info_score(data['holiday'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+# print(f"Day MI: {mutual_info_score(pd.qcut(data['day'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
+# print(f"Year MI: {mutual_info_score(pd.qcut(data['year'], q=10, labels=False, duplicates='drop'), pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')):.4f}")
 
-# 可视化互信息分数
+# # 可视化互信息分数
 plt.figure(figsize=(10, 6))
 mi_scores = {
     'Dow': mutual_info_score(data['dow'], pd.qcut(data['trips'], q=10, labels=False, duplicates='drop')),
@@ -473,8 +535,8 @@ mi_scores = {
 plt.figure(figsize=(10, 6))
 bars = plt.bar(range(len(mi_scores)), list(mi_scores.values()), color='skyblue')
 plt.xticks(range(len(mi_scores)), list(mi_scores.keys()))
-plt.title('Mutual Information Scores with Trips')
-plt.ylabel('MI Score')
+plt.title('互信息分析')
+plt.ylabel('互信息分数')
 
 # 在柱状图上添加具体数值
 for bar in bars:
@@ -495,51 +557,51 @@ plt.savefig('./output/mutual_information_scores.png')
 plt.show()
 
 # 分析所有特征的互信息分数
-def calculate_mutual_info(data, feature, target='trips'):
-    if data[feature].dtype in ['int64', 'float64']:
-        # 对连续型变量进行分箱处理
-        feature_binned = pd.qcut(data[feature], q=10, labels=False, duplicates='drop')
-    else:
-        feature_binned = data[feature]
+# def calculate_mutual_info(data, feature, target='trips'):
+#     if data[feature].dtype in ['int64', 'float64']:
+#         # 对连续型变量进行分箱处理
+#         feature_binned = pd.qcut(data[feature], q=10, labels=False, duplicates='drop')
+#     else:
+#         feature_binned = data[feature]
     
-    target_binned = pd.qcut(data[target], q=10, labels=False, duplicates='drop')
-    return mutual_info_score(feature_binned, target_binned)
+#     target_binned = pd.qcut(data[target], q=10, labels=False, duplicates='drop')
+#     return mutual_info_score(feature_binned, target_binned)
 
-# 计算所有特征的互信息分数
-mi_scores = {}
-for feature in data.columns:
-    if feature != 'trips':
-        mi_scores[feature] = calculate_mutual_info(data, feature)
+# # 计算所有特征的互信息分数
+# mi_scores = {}
+# for feature in data.columns:
+#     if feature != 'trips':
+#         mi_scores[feature] = calculate_mutual_info(data, feature)
 
-# 将互信息分数转换为DataFrame并排序
-mi_df = pd.DataFrame(mi_scores.items(), columns=['Feature', 'MI_Score'])
-mi_df = mi_df.sort_values('MI_Score', ascending=False)
+# # 将互信息分数转换为DataFrame并排序
+# mi_df = pd.DataFrame(mi_scores.items(), columns=['Feature', 'MI_Score'])
+# mi_df = mi_df.sort_values('MI_Score', ascending=False)
 
-# 绘制所有特征的互信息分数条形图
-plt.figure(figsize=(12, 6))
-bars = plt.bar(range(len(mi_df)), mi_df['MI_Score'], color='skyblue')
-plt.xticks(range(len(mi_df)), mi_df['Feature'], rotation=45, ha='right')
-plt.title('所有特征与骑行次数的互信息分数')
-plt.ylabel('互信息分数')
+# # 绘制所有特征的互信息分数条形图
+# plt.figure(figsize=(12, 6))
+# bars = plt.bar(range(len(mi_df)), mi_df['MI_Score'], color='skyblue')
+# plt.xticks(range(len(mi_df)), mi_df['Feature'], rotation=45, ha='right')
+# plt.title('所有特征与骑行次数的互信息分数')
+# plt.ylabel('互信息分数')
 
-# 在柱状图上添加具体数值
-for bar in bars:
-    height = bar.get_height()
-    plt.text(bar.get_x() + bar.get_width()/2., height,
-             f'{height:.4f}',
-             ha='center', va='bottom')
+# # 在柱状图上添加具体数值
+# for bar in bars:
+#     height = bar.get_height()
+#     plt.text(bar.get_x() + bar.get_width()/2., height,
+#              f'{height:.4f}',
+#              ha='center', va='bottom')
 
-# 添加参考线
-plt.axhline(y=0.1, color='r', linestyle='--', alpha=0.3, label='极弱相关(0.1)')
-plt.axhline(y=0.3, color='g', linestyle='--', alpha=0.3, label='弱相关(0.3)')
-plt.axhline(y=0.5, color='b', linestyle='--', alpha=0.3, label='中等相关(0.5)')
-plt.axhline(y=0.8, color='purple', linestyle='--', alpha=0.3, label='强相关(0.8)')
+# # 添加参考线
+# plt.axhline(y=0.1, color='r', linestyle='--', alpha=0.3, label='极弱相关(0.1)')
+# plt.axhline(y=0.3, color='g', linestyle='--', alpha=0.3, label='弱相关(0.3)')
+# plt.axhline(y=0.5, color='b', linestyle='--', alpha=0.3, label='中等相关(0.5)')
+# plt.axhline(y=0.8, color='purple', linestyle='--', alpha=0.3, label='强相关(0.8)')
 
-plt.legend()
-plt.tight_layout()
-plt.savefig('./output/all_features_mutual_information.png')
-plt.show()
+# plt.legend()
+# plt.tight_layout()
+# plt.savefig('./output/all_features_mutual_information.png')
+# plt.show()
 
-# 打印互信息分数表格
-print("\n所有特征与骑行次数的互信息分数（按分数降序排列）：")
-print(mi_df.to_string(index=False))
+# # 打印互信息分数表格
+# print("\n所有特征与骑行次数的互信息分数（按分数降序排列）：")
+# print(mi_df.to_string(index=False))
