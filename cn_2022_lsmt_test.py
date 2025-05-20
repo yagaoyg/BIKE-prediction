@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
-from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import mean_squared_error, r2_score
 
 sns.set_style("darkgrid")
@@ -24,8 +23,6 @@ data = pd.read_csv('./data/' + data_name + '.csv',
                    parse_dates=['datetime'],
                    index_col=['datetime'])
 
-# print(data.head())
-
 train_percentage = 0.5
 val_percentage = 0.6
 test_percentage = 0.7
@@ -37,7 +34,6 @@ test_size = int(len(data) * test_percentage)
 train_data = data.iloc[0:train_size]
 val_data = data.iloc[train_size:val_size]
 test_data = data.iloc[val_size:test_size]
-# print(len(train_data), len(test_data))
 
 # 选取特征
 cols = ['season',
@@ -96,30 +92,14 @@ y_val = torch.tensor(y_val, dtype=torch.float32).to(device)
 x_test = torch.tensor(x_test, dtype=torch.float32).to(device)
 y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 
-# 创建数据加载器
-train_dataset = torch.utils.data.TensorDataset(x_train, y_train)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
-val_dataset = torch.utils.data.TensorDataset(x_val, y_val)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size)
-
 # 基于当前时间创建路径 作为基础路径使用
 base_path = "./model/{0:%Y-%m-%d %H-%M-%S}/".format(datetime.now())
-
-# 临时路径 用于保存训练过程中回调函数保存的模型
-temp_path = './model/temp/temp_bike_pred_model.pth'
-
-# 引入数据指标记录表
-train_df = pd.read_excel('train.xlsx')
 
 # 设置保存模型的路径
 model_save_path = base_path + '/bike_pred_model.pth'
 
 # 创建保存模型的文件夹（如果没有的话）
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
-
-# 记录开始时间
-start_time = "{0:%Y-%m-%d %H:%M:%S}".format(datetime.now())
 
 # 自定义LSTM模型
 # 双向LSTM + CNN
@@ -201,8 +181,3 @@ plt.title(f'Test Set Prediction\nRMSE: {rmse_test}, MAPE: {mape_test}%, WAPE: {w
 plt.legend()
 plt.savefig(base_path + f'/test_prediction_{rmse_test}.png')
 plt.show()
-
-# 保存模型和数据记录
-torch.save(model.state_dict(), base_path + 'bike_pred_model.pth')
-
-torch.save(model, f'{base_path}/full_model.pth')

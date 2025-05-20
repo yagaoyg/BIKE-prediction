@@ -32,7 +32,7 @@ CONFIG = {
     'target_col': 'count',
     'time_steps': 12,
     'batch_size': 32,
-    'train_epochs': 200,
+    'train_epochs': 100,
     'tuning_epochs': 50,  # 调优时使用较少的轮数
     'train_split': 0.6,
     'val_split': 0.7,

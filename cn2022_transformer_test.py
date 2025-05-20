@@ -11,20 +11,20 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # 配置设置
-sns.set_style("darkgrid")  # 设置 Seaborn 图表样式
-torch.manual_seed(42)  # 设置 PyTorch 随机种子
-np.random.seed(42)  # 设置 NumPy 随机种子
+sns.set_style("darkgrid")
+torch.manual_seed(42)
+np.random.seed(42)
 
 # 硬件检测
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 检测是否有 GPU 可用
-print(f"Using device: {device}")  # 打印使用的设备信息
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 # 全局配置参数
 CONFIG = {
     'feature_cols': [
         'season', 'year', 'month', 'day', 'dow', 'hour',
         'holiday', 'workingday', 'weather', 'temp',
-        'atemp', 'humidity', 'windspeed'
+        'atemp', 'humidity', 'windspeed','regrate'
     ],
     'target_col': 'count',
     'time_steps': 12,
