@@ -64,60 +64,60 @@ plt.show()
 # print(data.head())
 
 # 以月份为x轴，骑行次数为y轴，绘制折线图
-# data_month = data.resample('M').sum()
-# plt.figure(figsize=(12,5))
-# sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips, marker='o')
-# plt.xlabel('月份')  # 设置X轴标签
-# plt.ylabel('骑行次数')  # 设置Y轴标签
-# plt.savefig('./output/trips of month.png')
-# plt.show()
+data_month = data.resample('M').sum()
+plt.figure(figsize=(12,5))
+sns.lineplot(data=data_month, x=data_month.index, y=data_month.trips, marker='o')
+plt.xlabel('月份')  # 设置X轴标签
+plt.ylabel('骑行次数')  # 设置Y轴标签
+plt.savefig('./output/trips of month.png')
+plt.show()
 
 # 数值型特征的统计分析
-numerical_features1 = ['precipitation', 'snowfall']
-numerical_features2 = ['snow_depth','max_t']
-numerical_features3 = ['min_t', 'dt']
-numerical_features4 = ['average_wind_speed','stations_in_service']
+# numerical_features1 = ['precipitation', 'snowfall']
+# numerical_features2 = ['snow_depth','max_t']
+# numerical_features3 = ['min_t', 'dt']
+# numerical_features4 = ['average_wind_speed','stations_in_service']
 
 # 绘制数值型特征的分布直方图
-plt.figure(figsize=(12, 6))
-for i, feature in enumerate(numerical_features1, 1):
-    plt.subplot(1, 2, i)
-    plt.ylabel('次数')  # 设置Y轴标签
-    sns.histplot(data=data[feature], kde=True)
-    # plt.title(f'{feature}')
-plt.tight_layout()
-plt.savefig('./output/' + data_name + '_numerical_features_distribution1.png')
-plt.show()
+# plt.figure(figsize=(12, 6))
+# for i, feature in enumerate(numerical_features1, 1):
+#     plt.subplot(1, 2, i)
+#     plt.ylabel('次数')  # 设置Y轴标签
+#     sns.histplot(data=data[feature], kde=True)
+#     # plt.title(f'{feature}')
+# plt.tight_layout()
+# plt.savefig('./output/' + data_name + '_numerical_features_distribution1.png')
+# plt.show()
 
-plt.figure(figsize=(12, 6))
-for i, feature in enumerate(numerical_features2, 1):
-    plt.subplot(1, 2, i)
-    plt.ylabel('次数')  # 设置Y轴标签
-    sns.histplot(data=data[feature], kde=True)
-    # plt.title(f'{feature}')
-plt.tight_layout()
-plt.savefig('./output/' + data_name + '_numerical_features_distribution2.png')
-plt.show()
+# plt.figure(figsize=(12, 6))
+# for i, feature in enumerate(numerical_features2, 1):
+#     plt.subplot(1, 2, i)
+#     plt.ylabel('次数')  # 设置Y轴标签
+#     sns.histplot(data=data[feature], kde=True)
+#     # plt.title(f'{feature}')
+# plt.tight_layout()
+# plt.savefig('./output/' + data_name + '_numerical_features_distribution2.png')
+# plt.show()
 
-plt.figure(figsize=(12, 6))
-for i, feature in enumerate(numerical_features3, 1):
-    plt.subplot(1, 2, i)
-    plt.ylabel('次数')  # 设置Y轴标签
-    sns.histplot(data=data[feature], kde=True)
-    # plt.title(f'{feature}')
-plt.tight_layout()
-plt.savefig('./output/' + data_name + '_numerical_features_distribution3.png')
-plt.show()
+# plt.figure(figsize=(12, 6))
+# for i, feature in enumerate(numerical_features3, 1):
+#     plt.subplot(1, 2, i)
+#     plt.ylabel('次数')  # 设置Y轴标签
+#     sns.histplot(data=data[feature], kde=True)
+#     # plt.title(f'{feature}')
+# plt.tight_layout()
+# plt.savefig('./output/' + data_name + '_numerical_features_distribution3.png')
+# plt.show()
 
-plt.figure(figsize=(12, 6))
-for i, feature in enumerate(numerical_features4, 1):
-    plt.subplot(1, 2, i)
-    plt.ylabel('次数')  # 设置Y轴标签
-    sns.histplot(data=data[feature], kde=True)
-    # plt.title(f'{feature}')
-plt.tight_layout()
-plt.savefig('./output/' + data_name + '_numerical_features_distribution4.png')
-plt.show()
+# plt.figure(figsize=(12, 6))
+# for i, feature in enumerate(numerical_features4, 1):
+#     plt.subplot(1, 2, i)
+#     plt.ylabel('次数')  # 设置Y轴标签
+#     sns.histplot(data=data[feature], kde=True)
+#     # plt.title(f'{feature}')
+# plt.tight_layout()
+# plt.savefig('./output/' + data_name + '_numerical_features_distribution4.png')
+# plt.show()
 
 # 共享自行车用量的分布
 # numerical_features = 'trips'

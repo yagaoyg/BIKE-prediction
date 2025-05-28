@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 import optuna  # 新增
 
 # 配置设置

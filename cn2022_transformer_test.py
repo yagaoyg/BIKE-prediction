@@ -8,7 +8,7 @@ import seaborn as sns
 import os
 from datetime import datetime
 from sklearn.preprocessing import RobustScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 
 # 配置设置
 sns.set_style("darkgrid")
@@ -220,7 +220,7 @@ def main():
     # 打印模型参数
     print_model_params(model)
     
-    # 模型评估
+    # 模型预测
     model.eval()
     val_preds = []
     val_trues = []
